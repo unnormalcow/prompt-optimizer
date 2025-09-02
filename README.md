@@ -61,7 +61,7 @@ Prompt Optimizer是一个强大的AI提示词优化工具，帮助你编写更�
 
 ### 2. Vercel部署
 方式1：一键部署到自己的Vercel(方便，但后续无法自动更新)：
-   [![部署到 Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Flinshenkx%2Fprompt-optimizer)
+   [![部署到 Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https%3A%2F%2Fgithub.com%2Funnormalcow%2Fprompt-optimizer)
 
 方式2: Fork项目后在Vercel中导入（推荐，但需参考部署文档进行手动设置）：
    - 先Fork项目到自己的GitHub
