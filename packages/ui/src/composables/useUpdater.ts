@@ -1,10 +1,9 @@
-import { reactive, onMounted, onUnmounted, nextTick } from 'vue'
+import { reactive, onMounted, onUnmounted, nextTick, inject } from 'vue'
 import { isRunningInElectron } from '@prompt-optimizer/core'
 import { usePreferences } from './usePreferenceManager'
-import { inject } from 'vue'
 import { useI18n } from 'vue-i18n'
 // 移除过度抽象的 Hook，直接使用 window.electronAPI
-import type { DownloadProgress, UpdateInfo, VersionCheckResult, DownloadResult } from '@/types/electron'
+import type { DownloadProgress, UpdateInfo } from '@/types/electron'
 
 // 类型定义现在从 @/types/electron 导入，保持统一
 
@@ -862,7 +861,7 @@ export function useUpdater() {
       state.isDownloadingPrerelease = false
 
       // 设置用户可见的下载错误信息
-      let errorMessage = error.message || error.error || 'Update check failed'
+      const errorMessage = error.message || error.error || 'Update check failed'
 
       if (state.lastDownloadAttempt) {
         const versionType = state.lastDownloadAttempt === 'stable' ? t('updater.stable') : t('updater.prerelease')

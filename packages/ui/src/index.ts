@@ -1,12 +1,25 @@
-// 导入样式
-import 'element-plus/dist/index.css'
+// 纯Naive UI样式导入 - 移除theme.css依赖
 import './styles/index.css'
 import './styles/scrollbar.css'
 import './styles/common.css'
-import './styles/theme.css'
+// 已移除: import './styles/theme.css' - 完全使用Naive UI主题系统
 
 // 导出插件
 export { installI18n, installI18nOnly, initializeI18nWithStorage, setI18nServices, i18n } from './plugins/i18n'
+
+// 导出Naive UI配置
+export { 
+  currentNaiveTheme as naiveTheme,
+  currentThemeOverrides as themeOverrides, 
+  currentThemeId, 
+  currentThemeConfig,
+  naiveThemeConfigs,
+  switchTheme,
+  initializeNaiveTheme
+} from './config/naive-theme'
+
+// 导出主题相关 Composables
+export { useNaiveTheme } from './composables/useNaiveTheme'
 
 /**
  * 组件导出
@@ -16,7 +29,6 @@ export { installI18n, installI18nOnly, initializeI18nWithStorage, setI18nService
 // Components
 export { default as ToastUI } from './components/Toast.vue'
 export { default as ModelManagerUI } from './components/ModelManager.vue'
-export { default as OutputPanelUI } from './components/OutputPanel.vue'
 export { default as PromptPanelUI } from './components/PromptPanel.vue'
 export { default as OutputDisplay } from './components/OutputDisplay.vue'
 export { default as TemplateManagerUI } from './components/TemplateManager.vue'
@@ -28,14 +40,66 @@ export { default as MainLayoutUI } from './components/MainLayout.vue'
 export { default as ContentCardUI } from './components/ContentCard.vue'
 export { default as ActionButtonUI } from './components/ActionButton.vue'
 export { default as ThemeToggleUI } from './components/ThemeToggleUI.vue'
-export { default as TestPanelUI } from './components/TestPanel.vue'
-export { default as LanguageSwitchUI } from './components/LanguageSwitch.vue'
+// TestPanel.vue - 已替换为TestAreaPanel
+export { default as ModalUI } from './components/Modal.vue'
+export { default as PanelUI } from './components/Panel.vue'
+
+export { default as BasicTestMode } from './components/BasicTestMode.vue'
+export { default as VariableManagerModal } from './components/VariableManagerModal.vue'
+export { default as VariableEditor } from './components/VariableEditor.vue'
+export { default as VariableImporter } from './components/VariableImporter.vue'
+export { default as ConversationManager } from './components/ConversationManager.vue'
+export { default as ContextEditor } from './components/ContextEditor.vue'
+export { default as TestAreaPanel } from './components/TestAreaPanel.vue'
+export { default as TestInputSection } from './components/TestInputSection.vue'
+export { default as TestControlBar } from './components/TestControlBar.vue'
+export { default as TestResultSection } from './components/TestResultSection.vue'
+export { default as LanguageSwitchDropdown } from './components/LanguageSwitchDropdown.vue'
 export { default as BuiltinTemplateLanguageSwitchUi } from './components/BuiltinTemplateLanguageSwitch.vue'
 export { default as DataManagerUI } from './components/DataManager.vue'
 export { default as OptimizationModeSelectorUI } from './components/OptimizationModeSelector.vue'
 export { default as TextDiffUI } from './components/TextDiff.vue'
 export { default as OutputDisplayFullscreen } from './components/OutputDisplayFullscreen.vue'
+export { default as OutputDisplayCore } from './components/OutputDisplayCore.vue'
 export { default as UpdaterIcon } from './components/UpdaterIcon.vue'
+export { default as UpdaterModal } from './components/UpdaterModal.vue'
+export { default as FullscreenDialog } from './components/FullscreenDialog.vue'
+export { default as InputWithSelect } from './components/InputWithSelect.vue'
+export { default as MarkdownRenderer } from './components/MarkdownRenderer.vue'
+export { default as ToolCallDisplay } from './components/ToolCallDisplay.vue'
+
+// 导出 Naive UI 组件 (解决组件解析问题)
+export { 
+  NFlex,
+  NButton,
+  NCard,
+  NInput,
+  NSelect,
+  NModal,
+  NSpace,
+  NTag,
+  NText,
+  NGrid,
+  NGridItem,
+  NIcon,
+  NImage,
+  NLayout,
+  NLayoutHeader,
+  NLayoutContent,
+  NMessageProvider,
+  NButtonGroup,
+  NDropdown,
+  NDivider,
+  NDataTable,
+  NForm,
+  NFormItem,
+  NRadioGroup,
+  NRadioButton,
+  NScrollbar,
+  NEmpty,
+  NBadge,
+  useMessage
+} from 'naive-ui'
 
 // 导出指令
 export { clickOutside } from './directives/clickOutside'
@@ -68,6 +132,8 @@ export {
     createPreferenceService,
     ElectronPreferenceServiceProxy,
     createCompareService,
+    createContextRepo,
+    ElectronContextRepoProxy,
     isRunningInElectron,
     waitForElectronApi,
 } from '@prompt-optimizer/core'
@@ -75,6 +141,9 @@ export {
 // 导出类型
 export type {
     OptimizationMode,
+    OptimizationRequest,
+    ConversationMessage,
+    CustomConversationRequest,
     IModelManager,
     ITemplateManager,
     IHistoryManager,
@@ -82,5 +151,15 @@ export type {
     IPromptService,
     IPreferenceService,
     ICompareService,
+    ContextRepo,
+    ContextPackage,
+    ContextBundle,
     Template
 } from '@prompt-optimizer/core'
+
+// 导出新增的类型和服务
+export * from './types'
+export * from './services'
+
+// 导出快速模板管理器
+export { quickTemplateManager } from './data/quickTemplates'

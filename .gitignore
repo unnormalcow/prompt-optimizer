@@ -56,6 +56,8 @@ logs
 .eslintcache
 .stylelintcache
 .tsbuildinfo
+*.tsbuildinfo
+**/tsconfig.tsbuildinfo
 .rollup.cache
 
 # ==========================================
@@ -179,3 +181,12 @@ storybook-static
 
 prompt-optimizer-datas
 prompt-optimizer-data
+.claude
+.playwright-mcp
+nul
+.spec-workflow
+.bmad-core
+.trae
+.cursor/rules/bmad
+CLAUDE.md
+.vscode

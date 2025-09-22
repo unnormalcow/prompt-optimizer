@@ -1,6 +1,5 @@
 import { createI18n } from 'vue-i18n'
-import type { App } from 'vue'
-import { ref } from 'vue'
+import { ref, type App } from 'vue'
 import zhCN from '../i18n/locales/zh-CN'
 import enUS from '../i18n/locales/en-US'
 import { getPreference, setPreference } from '../composables/usePreferenceManager'
@@ -12,7 +11,7 @@ type SupportedLocale = 'zh-CN' | 'en-US'
 const SUPPORTED_LOCALES: SupportedLocale[] = ['zh-CN', 'en-US']
 
 // 服务引用
-let servicesRef = ref<AppServices | null>(null);
+const servicesRef = ref<AppServices | null>(null);
 
 // 设置服务引用的函数
 export function setI18nServices(services: AppServices) {

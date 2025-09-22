@@ -6,6 +6,7 @@ export default {
     confirm: 'Confirm',
     delete: 'Delete',
     edit: 'Edit',
+    copy: 'Copy',
     create: 'Create',
     search: 'Search',
     settings: 'Settings',
@@ -30,9 +31,11 @@ export default {
     use: 'Use',
     expand: 'Expand',
     collapse: 'Collapse',
+    hide: 'Hide',
     clear: 'Clear',
     createdAt: 'Created at',
     version: 'V{version}',
+    actions: 'Actions',
     optimize: 'Optimize',
     iterate: 'Iterate',
     system: 'System',
@@ -46,7 +49,6 @@ export default {
     number: 'Number',
     integer: 'Integer',
     optional: 'Optional',
-    copy: 'Copy',
     content: 'Content',
     noContent: 'No content',
     clickToEdit: 'Click to edit',
@@ -54,6 +56,7 @@ export default {
     generatingReasoning: 'Thinking...',
     copyContent: 'Copy Content',
     copyAll: 'Copy All',
+    focus: 'Focus',
     expandReasoning: 'Expand reasoning',
     collapseReasoning: 'Collapse reasoning',
     success: 'Success',
@@ -70,7 +73,12 @@ export default {
     render: 'Render',
     source: 'Source',
     reasoning: 'Reasoning',
-    compare: 'Compare'
+    compare: 'Compare',
+    moveUp: 'Move Up',
+    moveDown: 'Move Down',
+    preview: 'Preview',
+    import: 'Import',
+    export: 'Export'
   },
   actions: {
     copy: 'Copy',
@@ -84,6 +92,8 @@ export default {
     history: 'History',
     templates: 'Templates',
     dataManager: 'Data Manager',
+    advancedMode: 'Advanced Mode',
+    variableManager: 'Variable Manager',
   },
   promptOptimizer: {
     title: 'Prompt Optimizer',
@@ -107,10 +117,252 @@ export default {
     systemPromptPlaceholder: 'Enter the system prompt to optimize...',
     userPromptPlaceholder: 'Enter the user prompt to optimize...',
     systemPromptHelp: 'System Prompt Optimization Mode: Optimize system prompts that define AI assistant role, behavior and response style',
-    userPromptHelp: 'User Prompt Optimization Mode: Optimize user prompts to improve AI interaction effectiveness and accuracy'
+    userPromptHelp: 'User Prompt Optimization Mode: Optimize user prompts to improve AI interaction effectiveness and accuracy',
+    contextManagement: 'Context Management',
+    optimizationContext: 'Optimization Context',
+    conversationContext: 'Conversation Context',
+    contextHelp: 'In advanced mode, you can add conversation context to help AI better understand optimization requirements',
+    contextTitle: 'Optimization Context',
+    contextDescription: 'Provide conversation background for optimization to help AI better understand optimization goals'
+  },
+  variables: {
+    title: 'Variable Manager',
+    count: 'Variables: {count}',
+    missing: 'Missing: {count}',
+    total: '{count} variables total',
+    predefined: 'Predefined Variables',
+    custom: 'Custom Variables',
+    predefinedBadge: 'Built-in',
+    customBadge: 'Custom',
+    predefinedDescriptions: {
+      originalPrompt: 'Current original prompt content',
+      lastOptimizedPrompt: 'Last optimized prompt result',
+      iterateInput: 'Input content for iteration optimization',
+      currentPrompt: 'Current prompt in use (optimized or original)',
+      userQuestion: 'User question or input',
+      conversationContext: 'Current conversation context information',
+      toolsContext: 'Available tools information (auto-injected)'
+    },
+    readonly: 'Read-only',
+    emptyValue: '(empty)',
+    noCustomVariables: 'No custom variables yet',
+    addFirstVariable: 'Add your first custom variable below',
+    addNew: 'Add New Variable',
+    name: 'Variable Name',
+    value: 'Variable Value',
+    namePlaceholder: 'e.g., userName, productType',
+    valuePlaceholder: 'Enter variable value',
+    add: 'Add',
+    edit: 'Edit',
+    delete: 'Delete',
+    export: 'Export',
+    import: 'Import',
+    exportTitle: 'Export Variables',
+    importTitle: 'Import Variables',
+    copyData: 'Copy Data',
+    importPlaceholder: 'Paste variable data in JSON format',
+    errors: {
+      invalidName: 'Variable name must start with letter and contain only letters, numbers, and underscores',
+      predefinedName: 'Cannot use predefined variable name',
+      duplicateName: 'Variable name already exists',
+      valueTooLong: 'Variable value is too long (max 10,000 characters)',
+      importFailed: 'Failed to import variables'
+    },
+    management: {
+      title: 'Variable Management',
+      addVariable: 'Add Variable',
+      import: 'Import',
+      export: 'Export',
+      variableName: 'Variable Name',
+      value: 'Value',
+      description: 'Description',
+      sourceLabel: 'Source',
+      preview: 'Preview',
+      deleteConfirm: 'Are you sure you want to delete variable "{name}"?',
+      totalCount: '{count} variables total',
+      noVariables: 'No variables',
+      exportTitle: 'Export Variables',
+      exportFormat: 'Export Format',
+      exportInfo: 'Export Information',
+      exportPreview: 'Export Preview',
+      variables: 'variables',
+      download: 'Download',
+      source: {
+        predefined: 'Predefined',
+        custom: 'Custom'
+      }
+    },
+    editor: {
+      addTitle: 'Add Variable',
+      editTitle: 'Edit Variable',
+      variableName: 'Variable Name',
+      variableNamePlaceholder: 'e.g., userName',
+      variableNameHelp: 'Can only contain letters, numbers, and underscores, must start with letter or underscore',
+      variableValue: 'Variable Value',
+      variableValuePlaceholder: 'Enter variable value...',
+      variableValueHelp: 'Supports multi-line text, up to 5000 characters',
+      preview: 'Preview',
+      usage: 'Usage',
+      resolvedValue: 'Resolved Value',
+      errors: {
+        nameRequired: 'Variable name is required',
+        nameInvalid: 'Invalid variable name format',
+        namePredefined: 'Cannot use predefined variable name',
+        nameExists: 'Variable name already exists',
+        valueRequired: 'Variable value is required',
+        valueTooLong: 'Variable value cannot exceed 5000 characters'
+      }
+    },
+    preview: {
+      title: 'Variable Preview',
+      variableName: 'Variable Name',
+      source: 'Source',
+      valueLength: 'Length',
+      characters: 'characters',
+      value: 'Variable Value',
+      copyValue: 'Copy Value',
+      copy: 'Copy',
+      copied: 'Copied',
+      usageExamples: 'Usage Examples',
+      inTemplate: 'In Template',
+      inMessage: 'In Message'
+    },
+    importer: {
+      title: 'Import Variables',
+      fromFile: 'From File',
+      fromText: 'From Text',
+      dropFile: 'Drop file here',
+      orClickToSelect: 'or click to select file',
+      fileRequirements: 'File Requirements',
+      supportedFormats: 'Supported Formats',
+      maxSize: 'Max Size',
+      structureExample: 'Structure example: key-value pairs',
+      textFormat: 'Text Format',
+      csvText: 'CSV Text',
+      txtText: 'TXT Text',
+      keyValuePairs: 'Key-Value Pairs',
+      csvTextHelp: 'Supports CSV format variable data',
+      txtTextHelp: 'Supports TXT format variable data',
+      previewTitle: 'Preview ({count} variables)',
+      conflict: 'Conflict',
+      conflictWarning: '{count} variables conflict with predefined variables and will be skipped',
+      import: 'Import',
+      errors: {
+        invalidFormat: 'Invalid JSON format',
+        invalidFileType: 'Please select a CSV or TXT file',
+        fileTooLarge: 'File too large, please select a file smaller than 10MB',
+        fileReadError: 'File read failed',
+        parseError: 'File parse failed',
+        invalidVariableFormat: 'Variable "{key}" format is invalid',
+        invalidVariableName: 'Variable name "{name}" format is invalid',
+        unsupportedFormat: 'Unsupported format',
+        csvMinRows: 'CSV file must have at least 2 rows (header and data)',
+        csvRequiredColumns: 'CSV file must contain name and value columns'
+      }
+    }
+  },
+  conversation: {
+    management: {
+      title: 'Conversation Manager',
+      openEditor: 'Open Editor'
+    },
+    title: 'Conversation Manager',
+    messageCount: '{count} messages',
+    quickTemplates: 'Quick Templates',
+    clearAll: 'Clear All',
+    noMessages: 'No conversation messages yet',
+    addFirstMessage: 'Add your first message below',
+    addFirst: 'Add your first message below',
+    addMessage: 'Add Message',
+    export: 'Export',
+    import: 'Import',
+    exportTitle: 'Export Conversation',
+    importTitle: 'Import Conversation',
+    copyData: 'Copy Data',
+    importPlaceholder: 'Paste conversation data in JSON format',
+    importError: 'Failed to import conversation',
+    confirmClear: 'Are you sure you want to clear all messages?',
+    
+    roles: {
+      system: 'System',
+      user: 'User',
+      assistant: 'Assistant'
+    },
+    templates: {
+      simple: 'Simple Chat',
+      roleplay: 'Role Play',
+      analysis: 'Analysis Discussion',
+      creative: 'Creative Writing',
+      systemPromptTest: 'Test System Prompt',
+      systemPromptComparison: 'Compare System Prompt Effects',
+      userPromptTest: 'Test User Prompt',
+      userPromptComparison: 'Compare User Prompt Effects',
+      testSystemPrompt: 'Please test the effectiveness of this system prompt',
+      compareSystemPrompt: 'Please demonstrate the capabilities of this system prompt',
+      systemPromptOptimizeDefault: 'System Prompt Optimization Default Context',
+      systemPromptOptimizeDefaultDesc: 'Default conversation template for system prompt optimization, including original prompt and user question',
+      // System prompt optimization mode templates
+      systemDefault: 'Default Test',
+      systemRoleTest: 'Role Capability Demo',
+      systemCapabilityDemo: 'Feature Demonstration',
+      systemConsistencyCheck: 'Consistency Check',
+      systemEdgeCaseTest: 'Edge Case Test',
+      systemMultiTurnTest: 'Multi-turn Conversation Test',
+      // User prompt optimization mode templates
+      userSimpleTest: 'Simple Test',
+      userWithContext: 'Test with Context',
+      userExpertMode: 'Expert Mode',
+      userStepByStep: 'Step-by-step Response',
+      userCreativeMode: 'Creative Mode',
+      userComparison: 'Comparative Analysis',
+      userDialogue: 'Interactive Dialogue'
+    },
+    
+    placeholders: {
+      system: 'Enter system message (defines AI behavior and context)...',
+      user: 'Enter user message (your input or question)...',
+      assistant: 'Enter assistant message (AI response)...',
+      default: 'Enter message content...'
+    },
+    
+    variableCount: '{count} variables',
+    missingVariables: '{count} missing',
+    detectedVariables: 'Variables found',
+    missingVariablesTitle: 'Missing Variables',
+    usedVariables: 'Used Variables',
+    preview: 'Preview',
+    missingVariablesList: 'Missing variables',
+    totalVariables: 'Total Variables',
+    allVariablesSet: 'All Variables Set',
+    createVariable: 'Create',
+    
+    showPreview: 'Show Preview',
+    hidePreview: 'Hide Preview',
+    previewNote: 'Preview shows how variables will be replaced',
+    moveUp: 'Move Up',
+    moveDown: 'Move Down',
+    deleteMessage: 'Delete Message',
+    fullscreenEdit: 'Fullscreen Edit',
+    editMessage: 'Edit Message',
+    variablesDetected: 'Variables Detected',
+    edit: 'Edit',
+    editingInFullscreen: 'Editing in fullscreen...',
+    missingVars: 'Missing Variables',
+    clickToCreateVariable: 'Click to create variable and open Variable Manager',
+    clickToCopyVariable: 'Click to copy variable name to clipboard',
+    syncToTest: {
+      success: 'Optimization context synced to test area',
+      notSupported: 'Current test panel does not support conversation sync'
+    }
+  },
+  tools: {
+    count: '{count} tools'
   },
   settings: {
     title: 'Settings',
+    advancedMode: 'Enable Advanced Features',
+    advancedModeTooltip: 'Enable custom variables and advanced conversation management',
+    advancedModeActive: 'Advanced features are enabled',
     language: 'Language Settings',
     theme: 'Theme Settings',
     apiSettings: 'API Settings',
@@ -345,16 +597,26 @@ export default {
   },
   theme: {
     title: 'Theme Settings',
-    light: 'Light Mode',
-    dark: 'Dark Mode',
-    blue: 'Blue Mode',
-    green: 'Green Mode',
-    purple: 'Purple Mode'
+    light: 'Light',
+    dark: 'Dark',
+    blue: 'Blue',
+    green: 'Green',
+    purple: 'Purple'
   },
   test: {
+    title: 'Test',
     content: 'Test Content',
     placeholder: 'Enter content to test...',
-    model: 'Model',
+    modes: {
+      simple: 'Simple Mode',
+      conversation: 'Conversation Mode'
+    },
+    simpleMode: {
+      label: 'Test Content',
+      placeholder: 'Enter content to test...',
+      help: ''
+    },
+    model: 'Test Model',
     startTest: 'Start Test →',
     startCompare: 'Start Compare Test →',
     testing: 'Testing...',
@@ -366,6 +628,12 @@ export default {
     optimizedResult: 'Optimized Prompt Result',
     testResult: 'Test Result',
     userPromptTest: 'User Prompt Test',
+    advanced: {
+      startTest: 'Start Test',
+      result: 'Test Result',
+      messageCount: '{count} messages',
+      missingVariables: '{count} missing variables'
+    },
     error: {
       failed: 'Test Failed',
       noModel: 'Please select a test model first',
@@ -428,6 +696,8 @@ export default {
     optimizing: 'Optimizing...',
     continueOptimize: 'Continue Optimize',
     copy: 'Copy',
+    applyToTest: 'Apply to Test',
+    appliedToTest: 'Applied to advanced testing with conversation template auto-configured',
     optimizedPlaceholder: 'Optimized prompt will be shown here...',
     iterateDirection: 'Please enter optimization direction:',
     iteratePlaceholder: 'e.g., Make the prompt more concise, add specific functionality description, etc...',
@@ -455,6 +725,10 @@ export default {
     error: {
       copyFailed: 'Copy failed'
     }
+  },
+  optimization: {
+    contextTitle: 'Optimization Context',
+    contextDescription: 'Provide conversation background for optimization to help AI better understand optimization goals'
   },
   model: {
     select: {
@@ -553,6 +827,29 @@ export default {
       failed: 'Failed to import data',
       successWithRefresh: 'Data imported successfully, page will refresh to apply all changes'
     },
+    contexts: {
+      title: 'Context Collections Management',
+      description: 'Import or export all context collections, including messages, variables and tool configurations.',
+      exportFile: 'Export to File',
+      exportClipboard: 'Export to Clipboard',
+      importFile: 'Import from File',
+      importClipboard: 'Import from Clipboard',
+      importMode: 'Import Mode',
+      replaceMode: 'Replace Mode',
+      appendMode: 'Append Mode',  
+      mergeMode: 'Merge Mode',
+      replaceModeDesc: 'Completely replace existing context collections',
+      appendModeDesc: 'Append import content to existing collections (auto handle ID conflicts)',
+      mergeModeDesc: 'Merge contexts with same ID, using import content as priority',
+      importSuccess: 'Successfully imported {count} contexts',
+      exportSuccess: 'Successfully exported {count} contexts to {target}',
+      predefinedVariablesSkipped: 'Skipped {count} predefined variable overrides',
+      conflictingIdsRenamed: '{count} conflicting IDs renamed',
+      currentContextRestored: 'Current context restored to: {contextId}',
+      noContextsToImport: 'No valid contexts to import',
+      invalidContextBundle: 'Invalid context bundle format',
+      importModeRequired: 'Please select import mode'
+    },
     warning: 'Importing data will overwrite existing history records, model configurations, custom templates and all user settings (including theme, language preferences, etc.). Please ensure you have backed up important data.'
   },
   params: {
@@ -598,6 +895,128 @@ export default {
     },
     "tokens": {
       "unit": "tokens"
+    }
+  },
+  contextEditor: {
+    // Variables tab (新增)
+    variablesTab: 'Variables',
+    contextVariables: 'Context Variables',
+    contextVariablesDesc: 'Manage context-level variable overrides without affecting global variables',
+    noContextVariables: 'No context variables',
+    addFirstContextVariable: 'Add your first context variable',
+    addContextVariable: 'Add Context Variable',
+    editContextVariable: 'Edit Context Variable',
+    deleteContextVariable: 'Delete Context Variable',
+    deleteContextVariableConfirm: 'Are you sure you want to delete context variable "{name}"? It will revert to global value.',
+    contextVariableDeleted: 'Context variable deleted: {name}',
+    variableSource: 'Variable Source',
+    variableStatus: 'Status',
+    contextOverride: 'Context Override',
+    globalVariable: 'Global Variable',
+    predefinedVariable: 'Predefined Variable',
+    missingVariable: 'Missing Variable',
+    variableFromContext: 'From Context',
+    variableFromGlobal: 'From Global',
+    variableFromPredefined: 'Predefined',
+    predefinedVariableCannotOverride: 'Predefined variables cannot be overridden',
+    addVariable: 'Add Context Variable',
+    editVariable: 'Edit Context Variable',
+    contextVariableHelp: 'Context variables will override global variables with the same name, but cannot override predefined variables',
+    finalVariablesPreview: 'Final Variables Preview',
+    contextVariableName: 'Variable Name',
+    contextVariableValue: 'Variable Value',
+    variableNameRequired: 'Variable name is required',
+    variableNameInvalid: 'Invalid variable name format',
+    variableNamePredefined: 'Cannot use predefined variable name',
+    variableNameExists: 'Variable name already exists',
+    variableValueRequired: 'Variable value is required',
+    
+    // Import/Export context variables
+    importContextVariables: 'Import Context Variables',
+    exportContextVariables: 'Export Context Variables',
+    contextVariableImported: 'Imported {count} context variables',
+    contextVariableSkipped: 'Skipped {count} predefined variable conflicts',
+    
+    title: 'Context Editor',
+    systemTemplates: 'System Templates',
+    userTemplates: 'User Templates',
+    // Basic
+    noMessages: 'No messages',
+    addFirstMessage: 'Add your first message',
+    addMessage: 'Add Message',
+    noTools: 'No tools',
+    addFirstTool: 'Add first tool',
+    addTool: 'Add Tool',
+    noDescription: 'No description',
+    parametersCount: '{count} parameters',
+
+    // Templates
+    templateCategory: 'Template Category',
+    templateCount: '{count} templates',
+    noTemplates: 'No templates',
+    noTemplatesHint: 'Add templates in Template Manager',
+    applyTemplate: 'Apply Template',
+    moreMessages: '{count} more messages...',
+    templateApplied: 'Template applied: {name}',
+
+    // Import/Export
+    importTitle: 'Import Context Data',
+    importFormat: 'Import Format:',
+    selectFile: 'Select File',
+    orPasteText: 'Or paste text below',
+    import: 'Import',
+    exportTitle: 'Export Context Data',
+    exportFormat: 'Export Format:',
+    exportPreview: 'Export Preview:',
+    copyToClipboard: 'Copy to Clipboard',
+    saveToFile: 'Save to File',
+
+    // Tools editor
+    editTool: 'Edit Tool',
+    deleteToolConfirm: 'Are you sure you want to delete tool "{name}"?',
+    toolDeleted: 'Tool deleted: {name}',
+    exampleTemplate: 'Example Template',
+    exampleTemplateDesc: 'Start from a weather example or from an empty template.',
+    basicInfo: 'Basic Info',
+    toolNamePlaceholder: 'Enter tool name, e.g., get_weather',
+    toolDescPlaceholder: 'Enter tool description',
+    parameters: 'Parameters',
+    parametersPlaceholder: 'Enter JSON format parameter configuration',
+    invalidJson: 'Invalid JSON',
+    useExample: 'Use Example',
+    startEmpty: 'Start Empty',
+    save: 'Save',
+    toolsTooltip: 'Tools: {tools}',
+    toolsCount: '{count} tools',
+    
+    // Missing keys
+    override: 'Context Variable',
+    createOverride: 'Create Context Variable',
+    overrideCount: '{count} context variables',
+    variableOverrides: 'Context Variables',
+    globalVariables: 'Global: {count}',
+    noVariables: 'No variables',
+    addFirstVariable: 'Add your first context variable',
+    variableName: 'Variable Name',
+    variableValue: 'Variable Value',
+    variableNamePlaceholder: 'Enter variable name (without brackets)',
+    predefinedVariableWarning: 'Cannot modify predefined variables',
+    variableValuePlaceholder: 'Enter variable value',
+    deleteVariableConfirm: 'Are you sure you want to delete context variable "{name}"?',
+    variableDeleted: 'Context variable deleted: {name}',
+    predefinedVariableError: 'Cannot modify predefined variables',
+    variableSaved: '{action} context variable: {name}',
+    
+    // Variable source labels
+    variableSourceLabels: {
+      global: 'Global',
+      context: 'Context'
+    },
+    
+    // Variable status labels
+    variableStatusLabels: {
+      active: 'Active',
+      overridden: 'Overridden'
     }
   },
   updater: {
@@ -660,5 +1079,50 @@ export default {
     viewOnGitHub: 'View on GitHub',
     noReleasesFound: 'No releases found. This project may not have published any versions yet.',
     noStableReleasesFound: 'No stable releases found. Only prerelease versions may be available.'
+  },
+  accessibility: {
+    labels: {
+      contextEditor: 'Context Editor',
+      statisticsToolbar: 'Statistics Toolbar',
+      editorMain: 'Editor Main Area',
+      editorTabs: 'Editor Tabs',
+      messageCount: 'Message Count',
+      variableCount: 'Variable Count',
+      messagesTab: 'Messages Tab',
+      messagesPanel: 'Messages Panel',
+      messagesList: 'Messages List',
+      conversationMessages: 'Conversation Messages',
+      messageItem: 'Message Item',
+      templatesPanel: 'Templates panel',
+      templateCard: 'Template card',
+      toolCount: 'Tool Count',
+      variablesPanel: 'Variables Panel',
+      emptyMessages: 'Empty messages state',
+      messageIcon: 'Message icon',
+      addFirstMessage: 'Add first message button',
+      emptyTemplates: 'Empty templates state',
+      emptyVariables: 'Empty variables state'
+    },
+    descriptions: {
+      contextEditor: 'Edit and manage conversation context and tools',
+      messagesTab: 'Tab for managing conversation messages'
+    },
+    liveRegion: {
+      modalOpened: 'Modal dialog opened',
+      modalClosed: 'Modal dialog closed',
+      tabChanged: 'Tab changed'
+    }
+  },
+  toolCall: {
+    title: 'Tool Calls',
+    count: '{count} calls',
+    arguments: 'Arguments',
+    result: 'Result',
+    error: 'Error',
+    status: {
+      pending: 'Pending',
+      success: 'Success',
+      error: 'Failed'
+    }
   }
 };

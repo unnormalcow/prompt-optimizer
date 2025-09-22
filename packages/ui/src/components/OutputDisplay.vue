@@ -13,6 +13,7 @@
     :loading="loading"
     :streaming="streaming"
     :compareService="compareService"
+    :style="{ height: '100%', maxHeight: '100%', flex: 1, minHeight: 0, overflow: 'hidden' }"
     @update:content="emit('update:content', $event)"
     @update:reasoning="emit('update:reasoning', $event)"
     @copy="handleCopy"
@@ -21,7 +22,6 @@
     @edit-end="emit('edit-end')"
     @reasoning-toggle="emit('reasoning-toggle', $event)"
     @view-change="emit('view-change', $event)"
-    @reasoning-auto-hide="emit('reasoning-auto-hide')"
   />
   <OutputDisplayFullscreen
     v-model="isShowingFullscreen"
@@ -41,11 +41,10 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, inject } from 'vue';
+import { computed, ref, inject, type Ref } from 'vue';
 import OutputDisplayCore from './OutputDisplayCore.vue';
 import OutputDisplayFullscreen from './OutputDisplayFullscreen.vue';
 import type { AppServices } from '../types/services';
-import type { Ref } from 'vue';
 
 defineOptions({
   inheritAttrs: false,

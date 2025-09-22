@@ -1,16 +1,20 @@
 <template>
-  <div ref="markdownContainer" class="markdown-content theme-markdown-content"></div>
+    <NScrollbar v-if="!disableInternalScroll" :style="{ height: '100%' }" :bordered="false" content-style="padding: 0; height: 100%; display: flex; flex-direction: column;">
+      <div ref="markdownContainer" class="markdown-content" :style="{ height: '100%',maxHeight: '100%' }">
+      </div>
+    </NScrollbar>
+    <div v-else ref="markdownContainer" class="markdown-content" :style="{ height: '100%',maxHeight: '100%' }">
+    </div>
 </template>
 
 <script setup>
-import { ref, watch, onMounted, nextTick } from 'vue';
+import { NScrollbar } from 'naive-ui'
+import { ref, watch, onMounted } from 'vue';
 import MarkdownIt from 'markdown-it';
 import DOMPurify from 'dompurify';
 import hljs from 'highlight.js';
 import 'highlight.js/styles/github.css';
-import { useI18n } from 'vue-i18n'
 
-const { t } = useI18n()
 const props = defineProps({
   content: {
     type: String,
@@ -18,6 +22,11 @@ const props = defineProps({
   },
   // 新增：流式模式标识，用于优化流式渲染性能
   streaming: {
+    type: Boolean,
+    default: false
+  },
+  // 新增：禁用内部滚动，避免与外层滚动冲突
+  disableInternalScroll: {
     type: Boolean,
     default: false
   }
@@ -277,8 +286,7 @@ onMounted(renderMarkdown);
   word-wrap: break-word;
   overflow-wrap: break-word;
   hyphens: auto;
-  /* 使用与 theme-input 相同的背景色系统 */
-  @apply bg-stone-50;
+  /* Pure Naive UI theme - remove custom CSS variables */
   /* 填满容器并处理滚动 */
   height: 100%;
   overflow-y: auto;
@@ -311,12 +319,13 @@ onMounted(renderMarkdown);
   --md-spacing-lg: 0.8em 0;
 }
 
-/* 标题样式优化 - 使用CSS变量 */
+/* 标题样式优化 - 使用主题颜色 */
 .markdown-content h1 {
   line-height: 1.5;
   font-size: 1.6em;
   margin: var(--md-title-spacing);
   font-weight: 600;
+  color: inherit;
 }
 
 .markdown-content h2 {
@@ -325,6 +334,8 @@ onMounted(renderMarkdown);
   margin: var(--md-spacing-lg);
   font-weight: 600;
   padding-bottom: 0.1em;
+  color: inherit;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .markdown-content h3 {
@@ -332,6 +343,7 @@ onMounted(renderMarkdown);
   font-size: 1.2em;
   margin: var(--md-spacing-md);
   font-weight: 600;
+  color: inherit;
 }
 
 .markdown-content h4 {
@@ -339,6 +351,7 @@ onMounted(renderMarkdown);
   font-size: 1em;
   margin: var(--md-spacing-sm);
   font-weight: 600;
+  color: inherit;
 }
 
 /* 段落样式 */
@@ -346,6 +359,7 @@ onMounted(renderMarkdown);
   line-height: 1.6;
   margin: var(--md-spacing-sm);
   white-space: pre-wrap;
+  color: inherit;
 }
 
 /* 列表样式 */
@@ -354,12 +368,14 @@ onMounted(renderMarkdown);
   padding-left: 1.5em;
   margin: var(--md-spacing-sm);
   line-height: 1.5;
+  color: inherit;
 }
 
 /* 设置列表项为紧凑布局 */
 .markdown-content li {
   line-height: 1.5;
   margin: var(--md-spacing-sm);
+  color: inherit;
 }
 
 /* 嵌套列表优化 */
@@ -376,6 +392,8 @@ onMounted(renderMarkdown);
   overflow: auto;
   margin-bottom: 0.1em;
   position: relative;
+  background: rgba(0, 0, 0, 0.02);
+  border: 1px solid rgba(0, 0, 0, 0.1);
   /* 添加滚动条样式 */
   scrollbar-width: thin; /* Firefox */
   -ms-overflow-style: none; /* IE and Edge */
@@ -387,7 +405,7 @@ onMounted(renderMarkdown);
 }
 
 .markdown-content pre::-webkit-scrollbar-thumb {
-  background-color: rgba(0, 0, 0, 0.2);
+  background-color: rgba(0, 0, 0, 0.1);
   border-radius: 3px;
 }
 
@@ -411,6 +429,8 @@ onMounted(renderMarkdown);
   font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
   border-bottom-left-radius: 4px;
   user-select: none;
+  background-color: #18a058;
+  color: white;
 }
 
 .markdown-content code {
@@ -420,6 +440,9 @@ onMounted(renderMarkdown);
   margin: 0.3em;
   border-radius: 6px;
   white-space: pre;
+  background-color: rgba(0, 0, 0, 0.02);
+  color: inherit;
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 /* 引用样式 */
@@ -428,6 +451,9 @@ onMounted(renderMarkdown);
   margin: var(--md-spacing-sm);
   border-left-width: 0.25em;
   border-left-style: solid;
+  border-left-color: #18a058;
+  background-color: rgba(0, 0, 0, 0.02);
+  color: inherit;
 }
 
 /* 表格样式 */
@@ -437,12 +463,20 @@ onMounted(renderMarkdown);
   margin: var(--md-spacing-sm);
   overflow: auto;
   font-size: 0.9em;
+  border: 1px solid rgba(0, 0, 0, 0.1);
 }
 
 .markdown-content table th,
 .markdown-content table td {
   line-height: 1.5;
   padding: 0.3em 0.5em;
+  border: 1px solid rgba(0, 0, 0, 0.1);
+  color: inherit;
+}
+
+.markdown-content table th {
+  background-color: rgba(0, 0, 0, 0.02);
+  font-weight: 600;
 }
 
 /* 响应式表格 */
@@ -479,9 +513,11 @@ onMounted(renderMarkdown);
 .markdown-content a {
   text-decoration: none;
   transition: color 0.2s ease; /* 平滑颜色变化 */
+  color: #18a058;
 }
 
 .markdown-content a:hover {
   text-decoration: underline;
+  opacity: 0.8;
 }
 </style>

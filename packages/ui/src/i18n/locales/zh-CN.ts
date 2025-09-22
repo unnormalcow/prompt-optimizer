@@ -1,4 +1,4 @@
-export default {
+﻿export default {
   common: {
     loading: '加载中...',
     save: '保存',
@@ -30,9 +30,11 @@ export default {
     use: '使用',
     expand: '展开',
     collapse: '收起',
+    hide: '隐藏',
     clear: '清空',
     createdAt: '创建于',
     version: 'V{version}',
+    actions: '操作',
     optimize: '优化',
     iterate: '迭代',
     system: '系统',
@@ -48,6 +50,7 @@ export default {
     optional: '可选',
     copy: '复制',
     content: '内容',
+    focus: '聚焦',
     noContent: '暂无内容',
     clickToEdit: '点击编辑',
     generating: '生成中...',
@@ -70,7 +73,12 @@ export default {
     render: '渲染',
     source: '原文',
     reasoning: '思考过程',
-    compare: '对比'
+    compare: '对比',
+    moveUp: '上移',
+    moveDown: '下移',
+    preview: '预览',
+    import: '导入',
+    export: '导出'
   },
   actions: {
     copy: '复制',
@@ -84,6 +92,8 @@ export default {
     history: '历史记录',
     templates: '功能提示词',
     dataManager: '数据管理',
+    advancedMode: '高级模式',
+    variableManager: '变量管理',
   },
   promptOptimizer: {
     title: '提示词优化器',
@@ -107,10 +117,252 @@ export default {
     systemPromptPlaceholder: '请输入需要优化的系统提示词...',
     userPromptPlaceholder: '请输入需要优化的用户提示词...',
     systemPromptHelp: '系统提示词优化模式：优化用于定义AI助手角色、行为和回应风格的系统提示词',
-    userPromptHelp: '用户提示词优化模式：优化用户与AI交互时使用的提示词，提高交互效果和准确性'
+    userPromptHelp: '用户提示词优化模式：优化用户与AI交互时使用的提示词，提高交互效果和准确性',
+    contextManagement: '上下文管理',
+    optimizationContext: '优化上下文',
+    conversationContext: '会话上下文',
+    contextHelp: '在高级模式下，您可以添加会话上下文来帮助AI更好地理解优化需求',
+    contextTitle: '优化上下文',
+    contextDescription: '为优化提供会话背景，帮助AI更好地理解优化目标'
+  },
+  variables: {
+    title: '变量管理',
+    count: '变量：{count}',
+    missing: '缺失：{count}',
+    total: '共 {count} 个变量',
+    predefined: '预定义变量',
+    custom: '自定义变量',
+    predefinedBadge: '内置',
+    customBadge: '自定义',
+    predefinedDescriptions: {
+      originalPrompt: '当前原始提示词内容',
+      lastOptimizedPrompt: '最后一次优化的提示词结果',
+      iterateInput: '迭代优化的输入内容',
+      currentPrompt: '当前使用的提示词（优化后或原始）',
+      userQuestion: '用户问题或输入',
+      conversationContext: '当前会话上下文信息',
+      toolsContext: '可用工具信息（由系统自动注入）'
+    },
+    readonly: '只读',
+    emptyValue: '(空)',
+    noCustomVariables: '暂无自定义变量',
+    addFirstVariable: '在下方添加您的第一个自定义变量',
+    addNew: '添加新变量',
+    name: '变量名',
+    value: '变量值',
+    namePlaceholder: '例如：userName, productType',
+    valuePlaceholder: '请输入变量值',
+    add: '添加',
+    edit: '编辑',
+    delete: '删除',
+    export: '导出',
+    import: '导入',
+    exportTitle: '导出变量',
+    importTitle: '导入变量',
+    copyData: '复制数据',
+    importPlaceholder: '请粘贴JSON格式的变量数据',
+    errors: {
+      invalidName: '变量名必须以字母开头，只能包含字母、数字和下划线',
+      predefinedName: '不能使用预定义变量名',
+      duplicateName: '变量名已存在',
+      valueTooLong: '变量值过长（最大10,000字符）',
+      importFailed: '导入变量失败'
+    },
+    management: {
+      title: '变量管理',
+      addVariable: '添加变量',
+      import: '导入',
+      export: '导出',
+      variableName: '变量名',
+      value: '值',
+      description: '描述',
+      sourceLabel: '来源',
+      preview: '预览',
+      deleteConfirm: '确定要删除变量 "{name}" 吗？',
+      totalCount: '共 {count} 个变量',
+      noVariables: '暂无变量',
+      exportTitle: '导出变量',
+      exportFormat: '导出格式',
+      exportInfo: '导出信息',
+      exportPreview: '导出预览',
+      variables: '变量',
+      download: '下载',
+      source: {
+        predefined: '预定义',
+        custom: '自定义'
+      }
+    },
+    editor: {
+      addTitle: '添加变量',
+      editTitle: '编辑变量',
+      variableName: '变量名',
+      variableNamePlaceholder: '例如：userName',
+      variableNameHelp: '只能包含字母、数字和下划线，且必须以字母或下划线开头',
+      variableValue: '变量值',
+      variableValuePlaceholder: '输入变量的值...',
+      variableValueHelp: '支持多行文本，最多5000个字符',
+      preview: '预览',
+      usage: '使用方式',
+      resolvedValue: '解析后的值',
+      errors: {
+        nameRequired: '变量名不能为空',
+        nameInvalid: '变量名格式不正确',
+        namePredefined: '不能与预定义变量重名',
+        nameExists: '变量名已存在',
+        valueRequired: '变量值不能为空',
+        valueTooLong: '变量值不能超过5000个字符'
+      }
+    },
+    preview: {
+      title: '变量预览',
+      variableName: '变量名',
+      source: '来源',
+      valueLength: '长度',
+      characters: '字符',
+      value: '变量值',
+      copyValue: '复制值',
+      copy: '复制',
+      copied: '已复制',
+      usageExamples: '使用示例',
+      inTemplate: '在模板中',
+      inMessage: '在消息中'
+    },
+    importer: {
+      title: '导入变量',
+      fromFile: '从文件导入',
+      fromText: '从文本导入',
+      dropFile: '拖拽文件到此处',
+      orClickToSelect: '或点击选择文件',
+      fileRequirements: '文件要求',
+      supportedFormats: '支持的格式',
+      maxSize: '最大文件大小',
+      structureExample: '结构示例：键值对格式',
+      textFormat: '文本格式',
+      csvText: 'CSV文本',
+      txtText: 'TXT文本',
+      keyValuePairs: '键值对',
+      csvTextHelp: '支持CSV格式的变量数据',
+      txtTextHelp: '支持TXT格式的变量数据',
+      previewTitle: '预览（{count}个变量）',
+      conflict: '冲突',
+      conflictWarning: '{count}个变量与预定义变量重名，将被跳过',
+      import: '导入',
+      errors: {
+        invalidFormat: '无效的JSON格式',
+        invalidFileType: '请选择CSV或TXT文件',
+        fileTooLarge: '文件过大，请选择小于10MB的文件',
+        fileReadError: '文件读取失败',
+        parseError: '文件解析失败',
+        invalidVariableFormat: '变量"{key}"格式不正确',
+        invalidVariableName: '变量名"{name}"格式不正确',
+        unsupportedFormat: '不支持的格式',
+        csvMinRows: 'CSV文件必须至少包含2行（标题和数据）',
+        csvRequiredColumns: 'CSV文件必须包含name和value列'
+      }
+    }
+  },
+  conversation: {
+    management: {
+      title: '会话管理器',
+      openEditor: '打开编辑器'
+    },
+    title: '会话管理',
+    messageCount: '共 {count} 条消息',
+    quickTemplates: '快速模板',
+    clearAll: '清空全部',
+    noMessages: '暂无会话消息',
+    addFirst: '添加第一条消息',
+    addFirstMessage: '在下方添加您的第一条消息',
+    addMessage: '添加消息',
+    export: '导出',
+    import: '导入',
+    exportTitle: '导出会话',
+    importTitle: '导入会话',
+    copyData: '复制数据',
+    importPlaceholder: '请粘贴JSON格式的会话数据',
+    importError: '导入会话失败',
+    confirmClear: '确定要清空所有消息吗？',
+    roles: {
+      system: '系统',
+      user: '用户',
+      assistant: '助手'
+    },
+    templates: {
+      simple: '简单对话',
+      basic: '基础对话',
+      roleplay: '角色扮演',
+      analysis: '分析讨论',
+      creative: '创意写作',
+      systemPromptTest: '测试系统提示词',
+      systemPromptComparison: '对比系统提示词效果',
+      userPromptTest: '测试用户提示词',
+      userPromptComparison: '对比用户提示词效果',
+      testSystemPrompt: '请测试这个系统提示词的效果',
+      compareSystemPrompt: '请展示这个系统提示词的能力',
+      systemPromptOptimizeDefault: '系统提示词优化默认上下文',
+      systemPromptOptimizeDefaultDesc: '默认的系统提示词优化会话模板，包含原始提示词和用户问题',
+      // 系统提示词优化模式专用模板
+      systemDefault: '默认测试',
+      systemRoleTest: '角色能力展示',
+      systemCapabilityDemo: '功能演示',
+      systemConsistencyCheck: '一致性检查',
+      systemEdgeCaseTest: '边界情况测试',
+      systemMultiTurnTest: '多轮对话测试',
+      // 用户提示词优化模式专用模板
+      userSimpleTest: '简单测试',
+      userWithContext: '带上下文测试',
+      userExpertMode: '专家模式',
+      userStepByStep: '分步解答',
+      userCreativeMode: '创意模式',
+      userComparison: '对比分析',
+      userDialogue: '互动对话'
+    },
+    
+    placeholders: {
+      system: '请输入系统消息（定义AI行为和上下文）...',
+      user: '请输入用户消息（您的输入或问题）...',
+      assistant: '请输入助手消息（AI回应）...',
+      default: '请输入消息内容...'
+    },
+    
+    variableCount: '{count} 个变量',
+    missingVariables: '缺失 {count} 个',
+    detectedVariables: '检测到变量',
+    missingVariablesTitle: '缺失的变量',
+    usedVariables: '使用的变量',
+    preview: '预览',
+    missingVariablesList: '缺失变量',
+    totalVariables: '变量总数',
+    allVariablesSet: '变量已全部配置',
+    createVariable: '创建',
+    
+    showPreview: '显示预览',
+    hidePreview: '隐藏预览',
+    previewNote: '预览显示变量替换后的效果',
+    moveUp: '上移',
+    moveDown: '下移',
+    deleteMessage: '删除消息',
+    fullscreenEdit: '全屏编辑',
+    editMessage: '编辑消息',
+    variablesDetected: '检测到变量',
+    edit: '编辑',
+    editingInFullscreen: '正在全屏编辑...',
+    missingVars: '缺失变量',
+    clickToCreateVariable: '点击创建变量并打开变量管理器',
+    clickToCopyVariable: '点击复制变量名到剪贴板',
+    syncToTest: {
+      success: '优化上下文已同步到测试区域',
+      notSupported: '当前测试面板不支持会话同步'
+    }
+  },
+  tools: {
+    count: '{count} 个工具'
   },
   settings: {
     title: '设置',
+    advancedMode: '启用高级功能',
+    advancedModeTooltip: '启用自定义变量和高级会话管理功能',
+    advancedModeActive: '高级功能已启用',
     language: '语言设置',
     theme: '主题设置',
     apiSettings: 'API设置',
@@ -345,16 +597,26 @@ export default {
   },
   theme: {
     title: '主题设置',
-    light: '日间模式',
-    dark: '夜间模式',
-    blue: '蓝色模式',
-    green: '绿色模式',
-    purple: '暗紫模式'
+    light: '日间',
+    dark: '夜间',
+    blue: '蓝色',
+    green: '绿色',
+    purple: '紫色'
   },
   test: {
+    title: '测试',
     content: '测试内容',
     placeholder: '请输入要测试的内容...',
-    model: '模型',
+    modes: {
+      simple: '简单模式',
+      conversation: '会话模式'
+    },
+    simpleMode: {
+      label: '测试内容',
+      placeholder: '输入要测试的内容...',
+      help: ''
+    },
+    model: '测试模型',
     startTest: '开始测试 →',
     startCompare: '开始对比 →',
     testing: '测试中...',
@@ -366,6 +628,13 @@ export default {
     optimizedResult: '优化后提示词结果',
     testResult: '测试结果',
     userPromptTest: '用户提示词测试',
+    advanced: {
+      startTest: '开始测试',
+      result: '测试结果',
+      messageCount: '{count} 条消息',
+      missingVariables: '缺少 {count} 个变量',
+      title: '高级测试'
+    },
     error: {
       failed: '测试失败',
       noModel: '请先选择测试模型',
@@ -428,6 +697,8 @@ export default {
     optimizing: '优化中...',
     continueOptimize: '继续优化',
     copy: '复制',
+    applyToTest: '应用到测试',
+    appliedToTest: '已应用到高级测试，会话模板已自动配置',
     optimizedPlaceholder: '优化后的提示词将显示在这里...',
     iterateDirection: '请输入需要优化的方向：',
     iteratePlaceholder: '例如：使提示词更简洁、增加特定功能描述等...',
@@ -455,6 +726,10 @@ export default {
     error: {
       copyFailed: '复制失败'
     }
+  },
+  optimization: {
+    contextTitle: '优化上下文',
+    contextDescription: '为优化提供会话背景，帮助AI更好地理解优化目标'
   },
   model: {
     select: {
@@ -553,6 +828,29 @@ export default {
       failed: '数据导入失败',
       successWithRefresh: '数据导入成功，页面将刷新以应用所有更改'
     },
+    contexts: {
+      title: '上下文集合管理',
+      description: '导入或导出所有上下文集合，包括消息、变量和工具配置。',
+      exportFile: '导出到文件',
+      exportClipboard: '导出到剪贴板',
+      importFile: '从文件导入',
+      importClipboard: '从剪贴板导入',
+      importMode: '导入模式',
+      replaceMode: '替换模式',
+      appendMode: '追加模式',  
+      mergeMode: '合并模式',
+      replaceModeDesc: '完全替换现有上下文集合',
+      appendModeDesc: '将导入内容追加到现有集合（自动处理ID冲突）',
+      mergeModeDesc: '合并同ID的上下文，以导入内容为准',
+      importSuccess: '成功导入 {count} 个上下文',
+      exportSuccess: '成功导出 {count} 个上下文到 {target}',
+      predefinedVariablesSkipped: '跳过了 {count} 个预定义变量覆盖',
+      conflictingIdsRenamed: '{count} 个冲突ID已重命名',
+      currentContextRestored: '当前上下文已恢复为：{contextId}',
+      noContextsToImport: '没有有效的上下文可导入',
+      invalidContextBundle: '无效的上下文集合格式',
+      importModeRequired: '请选择导入模式'
+    },
     warning: '导入数据将覆盖现有的历史记录、模型配置、自定义提示词和所有用户设置（包括主题、语言偏好等），请确保已备份重要数据。'
   },
   params: {
@@ -598,6 +896,127 @@ export default {
     },
     "tokens": {
       "unit": "令牌"
+    }
+  },
+  contextEditor: {
+    // Variables tab (新增)
+    variablesTab: '变量',
+    contextVariables: '上下文变量',
+    contextVariablesDesc: '管理当前上下文的变量覆盖，不影响全局变量',
+    noContextVariables: '暂无上下文变量',
+    addFirstContextVariable: '添加您的第一个上下文变量',
+    addContextVariable: '添加上下文变量',
+    editContextVariable: '编辑上下文变量',
+    deleteContextVariable: '删除上下文变量',
+    deleteContextVariableConfirm: '确定要删除上下文变量"{name}"吗？删除后将回退到全局值。',
+    contextVariableDeleted: '已删除上下文变量：{name}',
+    variableSource: '变量来源',
+    variableStatus: '状态',
+    contextOverride: '上下文覆盖',
+    globalVariable: '全局变量',
+    predefinedVariable: '预定义变量',
+    missingVariable: '缺失变量',
+    variableFromContext: '来自上下文',
+    variableFromGlobal: '来自全局',
+    variableFromPredefined: '预定义',
+    predefinedVariableCannotOverride: '预定义变量不可覆盖',
+    addVariable: '添加上下文变量',
+    editVariable: '编辑上下文变量',
+    contextVariableHelp: '上下文变量会覆盖全局同名变量，但不能覆盖预定义变量',
+    finalVariablesPreview: '最终变量预览',
+    contextVariableName: '变量名',
+    contextVariableValue: '变量值',
+    variableNameRequired: '变量名是必需的',
+    variableNameInvalid: '变量名格式无效',
+    variableNamePredefined: '不能使用预定义变量名',
+    variableNameExists: '变量名已存在',
+    variableValueRequired: '变量值是必需的',
+    
+    // Import/Export context variables
+    importContextVariables: '导入上下文变量',
+    exportContextVariables: '导出上下文变量',
+    contextVariableImported: '已导入 {count} 个上下文变量',
+    contextVariableSkipped: '跳过 {count} 个预定义变量冲突',
+    
+    // Tools editor（新增）
+    editTool: '编辑工具',
+    deleteToolConfirm: '确定要删除工具“{name}”吗？',
+    toolDeleted: '已删除工具：{name}',
+    exampleTemplate: '示例模板',
+    exampleTemplateDesc: '可从天气示例开始，或从空白模板开始。',
+    basicInfo: '基本信息',
+    toolNamePlaceholder: '请输入工具名称，例如 get_weather',
+    toolDescPlaceholder: '请输入工具描述',
+    parameters: '参数配置',
+    parametersPlaceholder: '请输入JSON格式的参数配置',
+    invalidJson: '无效的 JSON',
+    useExample: '使用示例',
+    startEmpty: '从空白开始',
+    save: '保存',
+    toolsTooltip: '工具：{tools}',
+    toolsCount: '{count} 个工具',
+    title: '上下文编辑器',
+    systemTemplates: '系统模板',
+    userTemplates: '用户模板',
+    // Basic
+    noMessages: '暂无消息',
+    addFirstMessage: '添加您的第一条消息',
+    addMessage: '添加消息',
+    noTools: '暂无工具',
+    addFirstTool: '添加第一个工具',
+    addTool: '添加工具',
+    noDescription: '暂无描述',
+    parametersCount: '{count} 个参数',
+
+    // Templates
+    templateCategory: '模板分类',
+    templateCount: '{count} 个模板',
+    noTemplates: '暂无模板',
+    noTemplatesHint: '在模板管理器中添加模板',
+    applyTemplate: '应用模板',
+    moreMessages: '还有 {count} 条消息...',
+    templateApplied: '已应用模板：{name}',
+
+    // Import/Export
+    importTitle: '导入上下文数据',
+    importFormat: '导入格式：',
+    selectFile: '选择文件',
+    orPasteText: '或在下方粘贴文本',
+    import: '导入',
+    exportTitle: '导出上下文数据',
+    exportFormat: '导出格式：',
+    exportPreview: '导出预览：',
+    copyToClipboard: '复制到剪贴板',
+    saveToFile: '保存到文件',
+    
+    // Missing keys
+    override: '上下文变量',
+    createOverride: '创建上下文变量',
+    overrideCount: '{count} 个上下文变量',
+    variableOverrides: '上下文变量',
+    globalVariables: '全局: {count}',
+    noVariables: '暂无变量',
+    addFirstVariable: '添加第一个上下文变量',
+    variableName: '变量名',
+    variableValue: '变量值',
+    variableNamePlaceholder: '请输入变量名（不含大括号）',
+    predefinedVariableWarning: '不能修改预定义变量',
+    variableValuePlaceholder: '请输入变量值',
+    deleteVariableConfirm: '确定要删除上下文变量"{name}"吗？',
+    variableDeleted: '已删除上下文变量：{name}',
+    predefinedVariableError: '不能修改预定义变量',
+    variableSaved: '已{action}上下文变量：{name}',
+    
+    // Variable source labels
+    variableSourceLabels: {
+      global: '全局',
+      context: '上下文'
+    },
+    
+    // Variable status labels
+    variableStatusLabels: {
+      active: '活跃',
+      overridden: '被覆盖'
     }
   },
   updater: {
@@ -659,6 +1078,51 @@ export default {
     devEnvironment: '开发环境：更新检查已禁用',
     clickToCheck: '点击检查更新',
     noReleasesFound: '未找到发布版本。此项目可能尚未发布任何版本。',
-    noStableReleasesFound: '未找到正式版本。可能只有预览版本可用。'
+    noStableReleasesFound: '未找到稳定版本。可能只有预发布版本可用。'
+  },
+  accessibility: {
+    labels: {
+      contextEditor: '上下文编辑器',
+      statisticsToolbar: '统计工具栏',
+      editorMain: '编辑器主区域',
+      editorTabs: '编辑器标签页',
+      messageCount: '消息数量',
+      variableCount: '变量数量',
+      messagesTab: '消息标签页',
+      messagesPanel: '消息面板',
+      messagesList: '消息列表',
+      conversationMessages: '对话消息',
+      messageItem: '消息项',
+      templatesPanel: '模板面板',
+      templateCard: '模板卡片',
+      toolCount: '工具数量',
+      variablesPanel: '变量面板',
+      emptyMessages: '空消息状态',
+      messageIcon: '消息图标',
+      addFirstMessage: '添加第一条消息按钮',
+      emptyTemplates: '空模板状态',
+      emptyVariables: '空变量状态'
+    },
+    descriptions: {
+      contextEditor: '编辑和管理对话上下文和工具',
+      messagesTab: '用于管理对话消息的标签页'
+    },
+    liveRegion: {
+      modalClosed: '模式对话框已关闭',
+      modalOpened: '模态框已打开',
+      tabChanged: '标签页已切换'
+    }
+  },
+  toolCall: {
+    title: '工具调用',
+    count: '{count} 个调用',
+    arguments: '参数',
+    result: '结果',
+    error: '错误',
+    status: {
+      pending: '处理中',
+      success: '成功',
+      error: '失败'
+    }
   }
 };

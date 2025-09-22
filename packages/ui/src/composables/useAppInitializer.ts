@@ -1,4 +1,4 @@
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, type Ref } from 'vue';
 import {
   StorageFactory,
   createModelManager,
@@ -9,29 +9,33 @@ import {
   createPromptService,
   createTemplateLanguageService,
   createCompareService,
+  createContextRepo,
+  ElectronContextRepoProxy,
   ElectronModelManagerProxy,
   ElectronTemplateManagerProxy,
   ElectronHistoryManagerProxy,
   ElectronDataManagerProxy,
   ElectronLLMProxy,
   ElectronPromptServiceProxy,
-  ElectronTemplateLanguageServiceProxy, // 暂时注释掉直到构建完成
+  ElectronTemplateLanguageServiceProxy,
   isRunningInElectron,
   waitForElectronApi,
-  DataManager,
   ElectronPreferenceServiceProxy,
   createPreferenceService,
 } from '../'; // 从UI包的index导入所有核心模块
 import type { AppServices } from '../types/services';
-import type { IModelManager, ITemplateManager, IHistoryManager, ILLMService, IPromptService, IDataManager } from '@prompt-optimizer/core';
-import type { IPreferenceService } from '../types/services';
+import type { IModelManager, ITemplateManager, IHistoryManager, ILLMService, IPromptService, IDataManager, IPreferenceService } from '@prompt-optimizer/core';
 
 /**
  * 应用服务统一初始化器。
  * 负责根据运行环境（Web 或 Electron）创建和初始化所有核心服务。
  * @returns { services, isInitializing, error }
  */
-export function useAppInitializer() {
+export function useAppInitializer(): {
+  services: Ref<AppServices | null>;
+  isInitializing: Ref<boolean>;
+  error: Ref<Error | null>;
+} {
   const services = ref<AppServices | null>(null);
   const isInitializing = ref(true);
   const error = ref<Error | null>(null);
@@ -80,6 +84,9 @@ export function useAppInitializer() {
         // 创建 CompareService（直接使用，无需代理）
         const compareService = createCompareService();
 
+        // 使用 ElectronContextRepoProxy 代替临时方案
+        const contextRepo = new ElectronContextRepoProxy();
+
         services.value = {
           modelManager,
           templateManager,
@@ -90,6 +97,7 @@ export function useAppInitializer() {
           templateLanguageService, // 使用代理而不是null
           preferenceService, // 使用从core包导入的ElectronPreferenceServiceProxy
           compareService, // 直接使用，无需代理
+          contextRepo, // 使用Electron代理
         };
         console.log('[AppInitializer] Electron代理服务初始化完成');
 
@@ -138,17 +146,11 @@ export function useAppInitializer() {
           enableModel: (key) => modelManagerInstance.enableModel(key),
           disableModel: (key) => modelManagerInstance.disableModel(key),
           getEnabledModels: () => modelManagerInstance.getEnabledModels(),
-        };
-
-        const languageServiceAdapter = {
-          initialize: () => languageService.initialize(),
-          getCurrentLanguage: () => languageService.getCurrentLanguage(),
-          setLanguage: (language: any) => languageService.setLanguage(language),
-          toggleLanguage: () => languageService.toggleLanguage(),
-          isValidLanguage: (language: string) => languageService.isValidLanguage(language),
-          getSupportedLanguages: () => languageService.getSupportedLanguages(),
-          getLanguageDisplayName: (language: any) => languageService.getLanguageDisplayName(language),
-          isInitialized: () => languageService.isInitialized(),
+          // IImportExportable methods
+          exportData: () => modelManagerInstance.exportData(),
+          importData: (data) => modelManagerInstance.importData(data),
+          getDataType: () => modelManagerInstance.getDataType(),
+          validateData: (data) => modelManagerInstance.validateData(data),
         };
 
         const templateManagerAdapter: ITemplateManager = {
@@ -162,6 +164,11 @@ export function useAppInitializer() {
           changeBuiltinTemplateLanguage: (language) => templateManagerInstance.changeBuiltinTemplateLanguage(language),
           getCurrentBuiltinTemplateLanguage: async () => await templateManagerInstance.getCurrentBuiltinTemplateLanguage(),
           getSupportedBuiltinTemplateLanguages: async () => await templateManagerInstance.getSupportedBuiltinTemplateLanguages(),
+          // IImportExportable methods
+          exportData: () => templateManagerInstance.exportData(),
+          importData: (data) => templateManagerInstance.importData(data),
+          getDataType: () => templateManagerInstance.getDataType(),
+          validateData: (data) => templateManagerInstance.validateData(data),
         };
 
         const historyManagerAdapter: IHistoryManager = {
@@ -176,6 +183,11 @@ export function useAppInitializer() {
           createNewChain: (record) => historyManagerInstance.createNewChain(record),
           addIteration: (params) => historyManagerInstance.addIteration(params),
           deleteChain: (id) => historyManagerInstance.deleteChain(id),
+          // IImportExportable methods
+          exportData: () => historyManagerInstance.exportData(),
+          importData: (data) => historyManagerInstance.importData(data),
+          getDataType: () => historyManagerInstance.getDataType(),
+          validateData: (data) => historyManagerInstance.validateData(data),
         };
 
         // Services that depend on initialized managers
@@ -183,26 +195,31 @@ export function useAppInitializer() {
         llmService = createLLMService(modelManagerInstance);
         promptService = createPromptService(modelManager, llmService, templateManager, historyManager);
 
-        dataManager = createDataManager(modelManagerInstance, templateManagerInstance, historyManagerInstance, preferenceService);
-
         // 创建 CompareService（直接使用）
         const compareService = createCompareService();
 
+        // 创建 ContextRepo（使用相同的存储提供器）
+        const contextRepo = createContextRepo(storageProvider);
+
+        // 创建 DataManager（需要contextRepo）
+        dataManager = createDataManager(modelManagerInstance, templateManagerInstance, historyManagerInstance, preferenceService, contextRepo);
+
         // 将所有服务实例赋值给 services.value
-      services.value = {
+        services.value = {
           modelManager: modelManagerAdapter, // 使用适配器
           templateManager: templateManagerAdapter, // 使用适配器
           historyManager: historyManagerAdapter, // 使用适配器
-        dataManager,
-        llmService,
-        promptService,
-        templateLanguageService: languageService,
-        preferenceService, // 使用从core包导入的PreferenceService
-        compareService, // 直接使用
-      };
-      }
+          dataManager,
+          llmService,
+          promptService,
+          templateLanguageService: languageService,
+          preferenceService, // 使用从core包导入的PreferenceService
+          compareService, // 直接使用
+          contextRepo, // 上下文仓库
+        };
 
-      console.log('[AppInitializer] 所有服务初始化完成');
+        console.log('[AppInitializer] 所有服务初始化完成');
+      }
 
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
