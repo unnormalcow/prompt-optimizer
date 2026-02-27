@@ -5,30 +5,38 @@ on:
     tags:
       - 'v*.*.*'        # 正式版本: v1.0.0, v2.1.3
       - 'v*.*.*-*'      # 预览版本: v1.0.0-beta.1, v1.0.0-rc.1
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号（例如: v2.0.3）'
+        required: true
+        type: string
 
 env:
   NODE_VERSION: '22'
-  PNPM_VERSION: '10.6.1'
 
 jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
   # 构建 Windows 版本
   build-windows:
+    needs: test
     runs-on: windows-latest
     steps:
       - name: 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0  # 获取完整的git历史
           fetch-tags: true  # 确保获取所有tags
 
       - name: 安装 pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
-          version: ${{ env.PNPM_VERSION }}
           run_install: false
 
       - name: 设置 Node.js 环境
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
@@ -39,8 +47,14 @@ jobs:
           $pkgPath = "packages/desktop/package.json"
           $pkgJson = Get-Content $pkgPath -Raw | ConvertFrom-Json
 
-          # 1. 从 Git 标签提取版本号 (移除 'v' 前缀)
-          $tagVersion = "${{ github.ref }}".replace("refs/tags/v", "")
+          # 1. 从 Git 标签或手动输入提取版本号 (移除 'v' 前缀)
+          if ("${{ github.event_name }}" -eq "workflow_dispatch") {
+            $tagVersion = "${{ inputs.version }}".replace("v", "")
+            Write-Host "📝 Using manual input version: $tagVersion"
+          } else {
+            $tagVersion = "${{ github.ref }}".replace("refs/tags/v", "")
+            Write-Host "🏷️ Using git tag version: $tagVersion"
+          }
           $pkgJson.version = $tagVersion
           Write-Host "✅ Set version to: $tagVersion"
 
@@ -129,7 +143,7 @@ jobs:
           echo "Build artifacts verification passed"
 
       - name: 上传 Windows 构建产物
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: windows-build
           path: |
@@ -140,22 +154,22 @@ jobs:
 
   # 构建 macOS 版本
   build-macos:
+    needs: test
     runs-on: macos-latest
     steps:
       - name: 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0  # 获取完整的git历史
           fetch-tags: true  # 确保获取所有tags
 
       - name: 安装 pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
-          version: ${{ env.PNPM_VERSION }}
           run_install: false
 
       - name: 设置 Node.js 环境
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
@@ -163,10 +177,17 @@ jobs:
       - name: 动态配置 package.json
         run: |
           PKG_PATH="packages/desktop/package.json"
-          
-          # 1. 从 Git 标签提取版本号 (移除 'v' 前缀)
-          TAG_VERSION="${{ github.ref }}"
-          TAG_VERSION="${TAG_VERSION#refs/tags/v}"
+
+          # 1. 从 Git 标签或手动输入提取版本号 (移除 'v' 前缀)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG_VERSION="${{ inputs.version }}"
+            TAG_VERSION="${TAG_VERSION#v}"
+            echo "📝 Using manual input version: $TAG_VERSION"
+          else
+            TAG_VERSION="${{ github.ref }}"
+            TAG_VERSION="${TAG_VERSION#refs/tags/v}"
+            echo "🏷️ Using git tag version: $TAG_VERSION"
+          fi
           echo "✅ Set version to: $TAG_VERSION"
           
           # 2. 设置仓库地址 (自动感知当前仓库)
@@ -248,7 +269,7 @@ jobs:
           echo "Build artifacts verification passed"
 
       - name: 上传 macOS 构建产物
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: macos-build
           path: |
@@ -259,22 +280,22 @@ jobs:
 
   # 构建 Linux 版本
   build-linux:
+    needs: test
     runs-on: ubuntu-latest
     steps:
       - name: 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0  # 获取完整的git历史
           fetch-tags: true  # 确保获取所有tags
 
       - name: 安装 pnpm
-        uses: pnpm/action-setup@v2
+        uses: pnpm/action-setup@v4
         with:
-          version: ${{ env.PNPM_VERSION }}
           run_install: false
 
       - name: 设置 Node.js 环境
-        uses: actions/setup-node@v4
+        uses: actions/setup-node@v6
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: 'pnpm'
@@ -282,10 +303,17 @@ jobs:
       - name: 动态配置 package.json
         run: |
           PKG_PATH="packages/desktop/package.json"
-          
-          # 1. 从 Git 标签提取版本号 (移除 'v' 前缀)
-          TAG_VERSION="${{ github.ref }}"
-          TAG_VERSION="${TAG_VERSION#refs/tags/v}"
+
+          # 1. 从 Git 标签或手动输入提取版本号 (移除 'v' 前缀)
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TAG_VERSION="${{ inputs.version }}"
+            TAG_VERSION="${TAG_VERSION#v}"
+            echo "📝 Using manual input version: $TAG_VERSION"
+          else
+            TAG_VERSION="${{ github.ref }}"
+            TAG_VERSION="${TAG_VERSION#refs/tags/v}"
+            echo "🏷️ Using git tag version: $TAG_VERSION"
+          fi
           echo "✅ Set version to: $TAG_VERSION"
           
           # 2. 设置仓库地址 (自动感知当前仓库)
@@ -367,7 +395,7 @@ jobs:
           echo "Build artifacts verification passed"
 
       - name: 上传 Linux 构建产物
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: linux-build
           path: |
@@ -384,7 +412,7 @@ jobs:
       contents: write
     steps:
       - name: 检出代码
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0  # 获取完整的git历史
           fetch-tags: true  # 确保获取所有tags
@@ -392,7 +420,14 @@ jobs:
       - name: 获取版本号和类型
         id: version
         run: |
-          VERSION=${GITHUB_REF#refs/tags/}
+          # 从 Git 标签或手动输入获取版本号
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            VERSION="${{ inputs.version }}"
+            echo "📝 Using manual input version: $VERSION"
+          else
+            VERSION=${GITHUB_REF#refs/tags/}
+            echo "🏷️ Using git tag version: $VERSION"
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Version: $VERSION"
 
@@ -423,7 +458,7 @@ jobs:
           echo "release_name_prefix=$RELEASE_NAME_PREFIX" >> $GITHUB_OUTPUT
 
       - name: 下载所有构建产物
-        uses: actions/download-artifact@v4
+        uses: actions/download-artifact@v7
         with:
           path: ./artifacts
 
@@ -511,6 +546,46 @@ jobs:
           ... 以及其他 $((COMMITS_COUNT - 20)) 个提交"
           fi
 
+          # 获取本次发布的贡献者（排除主要作者）
+          CONTRIBUTORS=""
+          if [ -n "$PREVIOUS_TAG" ] && git rev-parse "$PREVIOUS_TAG" >/dev/null 2>&1; then
+            # 获取贡献者列表，排除主要作者和机器人
+            CONTRIBUTORS=$(git log --pretty=format:"%an|%ae" $PREVIOUS_TAG..$CURRENT_TAG 2>/dev/null | \
+              sort -u | \
+              grep -v -E "^(linshen|linshenkx|且炼时光)\|" | \
+              grep -v -E "\[bot\]@" | \
+              grep -v -E "^GitButler\|" | \
+              cut -d'|' -f1 | \
+              sort -u || true)
+          else
+            CONTRIBUTORS=$(git log --pretty=format:"%an|%ae" --max-count=50 2>/dev/null | \
+              sort -u | \
+              grep -v -E "^(linshen|linshenkx|且炼时光)\|" | \
+              grep -v -E "\[bot\]@" | \
+              grep -v -E "^GitButler\|" | \
+              cut -d'|' -f1 | \
+              sort -u || true)
+          fi
+
+          # 格式化贡献者列表
+          CONTRIBUTORS_SECTION=""
+          if [ -n "$CONTRIBUTORS" ]; then
+            CONTRIBUTORS_LIST=$(echo "$CONTRIBUTORS" | while read -r name; do
+              [ -n "$name" ] && echo "- @$name"
+            done | grep -v "^$" || true)
+
+            if [ -n "$CONTRIBUTORS_LIST" ]; then
+              CONTRIBUTORS_SECTION="
+          ### 🙏 致谢
+
+          感谢以下贡献者对本次发布的贡献：
+
+          $CONTRIBUTORS_LIST
+          "
+              echo "Found contributors: $CONTRIBUTORS"
+            fi
+          fi
+
           # 根据版本类型设置不同的图标和描述
           VERSION_ICON="🚀"
           VERSION_DESC="稳定版本"
@@ -538,23 +613,34 @@ jobs:
 
           ### 📦 下载
           - **Windows**: \`PromptOptimizer-*-win-x64.exe\` (安装程序) 或 \`PromptOptimizer-*-win-x64.zip\` (便携版)
-          - **macOS**: \`PromptOptimizer-*-darwin-x64.dmg\` (安装程序) 或 \`PromptOptimizer-*-darwin-x64.zip\` (便携版)
+          - **macOS (Apple Silicon)**: \`PromptOptimizer-*-darwin-arm64.dmg\` (安装程序) 或 \`PromptOptimizer-*-darwin-arm64.zip\` (便携版)
+          - **macOS (Intel)**: \`PromptOptimizer-*-darwin-x64.dmg\` (安装程序) 或 \`PromptOptimizer-*-darwin-x64.zip\` (便携版)
           - **Linux**: \`PromptOptimizer-*-linux-x86_64.AppImage\` (便携版) 或 \`PromptOptimizer-*-linux-x64.zip\` (便携版)
 
           ### 🔧 安装说明
-          - **Windows**: 
+          - **Windows**:
             - **安装程序**: 下载 \`.exe\` 文件，双击运行安装向导
             - **便携版**: 下载 \`.zip\` 文件，解压后运行 \`PromptOptimizer.exe\`
-          - **macOS**: 
+          - **macOS**:
+            - **Apple Silicon (M1/M2/M3)**: 下载 \`darwin-arm64\` 版本
+            - **Intel 芯片**: 下载 \`darwin-x64\` 版本
             - **安装程序**: 下载 \`.dmg\` 文件，双击挂载后拖拽到应用程序文件夹
             - **便携版**: 下载 \`.zip\` 文件，解压后运行 \`PromptOptimizer.app\`
-          - **Linux**: 
+            - ⚠️ **安全提示**: 如果打开应用时提示「已损坏」或「无法验证开发者」，请在终端执行以下命令后重试：
+              \`\`\`bash
+              xattr -rd com.apple.quarantine /Applications/PromptOptimizer.app
+              \`\`\`
+              或者对于 .dmg 文件：
+              \`\`\`bash
+              xattr -rd com.apple.quarantine ~/Downloads/PromptOptimizer-*.dmg
+              \`\`\`
+          - **Linux**:
             - **AppImage**: 下载 \`.AppImage\` 文件，添加执行权限后直接运行
             - **便携版**: 下载 \`.zip\` 文件，解压后运行 \`PromptOptimizer\`
 
           ### 📝 更新内容
           $COMMITS_LIMITED
-
+          $CONTRIBUTORS_SECTION
           ### 🔗 更多信息
           - **项目主页**: [GitHub Repository](https://github.com/${{ github.repository }})
           - **问题反馈**: [Issues](https://github.com/${{ github.repository }}/issues)

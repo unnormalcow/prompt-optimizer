@@ -30,16 +30,16 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, inject } from 'vue'
+import { ref, computed, watch, inject, type Ref } from 'vue'
+
 import { useI18n } from 'vue-i18n'
 import { NSelect, NButton, NSpace, NText } from 'naive-ui'
-import type { OptimizationMode, ITemplateManager, Template } from '@prompt-optimizer/core'
+import type { OptimizationMode, Template, TemplateMetadata } from '@prompt-optimizer/core'
 import type { AppServices } from '../types/services'
-import type { Ref } from 'vue'
 
 const { t } = useI18n()
 
-type TemplateType = 'optimize' | 'userOptimize' | 'iterate';
+type TemplateType = TemplateMetadata['templateType'];
 
 const props = defineProps({
   modelValue: {
@@ -49,7 +49,9 @@ const props = defineProps({
   type: {
     type: String as () => TemplateType,
     required: true,
-    validator: (value: string): boolean => ['optimize', 'userOptimize', 'iterate'].includes(value)
+    validator: (value: string): boolean => (
+      ['optimize', 'userOptimize', 'text2imageOptimize', 'image2imageOptimize', 'imageIterate', 'iterate', 'conversationMessageOptimize', 'contextUserOptimize', 'contextIterate'] as string[]
+    ).includes(value)
   },
   optimizationMode: {
     type: String as () => OptimizationMode,
@@ -228,7 +230,7 @@ watch(
  * 支持 string 和 Array<{role: string; content: string}> 两种类型
  * 修复 BugBot 发现的数组引用比较问题
  */
-const deepCompareTemplateContent = (content1: any, content2: any): boolean => {
+const deepCompareTemplateContent = (content1: string | Array<{role: string; content: string}>, content2: string | Array<{role: string; content: string}>): boolean => {
   // 类型相同性检查
   if (typeof content1 !== typeof content2) {
     return false

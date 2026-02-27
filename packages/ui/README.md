@@ -71,7 +71,12 @@ const { naiveTheme, themeOverrides } = useNaiveTheme()
     @test="handleTest"
   >
     <template #model-select>
-      <ModelSelectUI v-model="selectedModel" />
+      <SelectWithConfig
+        v-model="selectedModel"
+        :options="modelOptions"
+        :getPrimary="(o) => o.label"
+        :getValue="(o) => o.value"
+      />
     </template>
   </TestAreaPanel>
 </template>
@@ -89,7 +94,12 @@ const { naiveTheme, themeOverrides } = useNaiveTheme()
 ```vue
 <template>
   <!-- 模型选择器 -->
-  <ModelSelectUI v-model="selectedModel" />
+  <SelectWithConfig
+    v-model="selectedModel"
+    :options="modelOptions"
+    :getPrimary="(o) => o.label"
+    :getValue="(o) => o.value"
+  />
   
   <!-- 模型管理器 -->
   <ModelManagerUI @model-updated="handleModelUpdate" />
@@ -248,11 +258,11 @@ export { default as OutputDisplayCore } from './components/OutputDisplayCore.vue
 
 // 管理组件
 export { default as ModelManagerUI } from './components/ModelManager.vue'
-export { default as ModelSelectUI } from './components/ModelSelect.vue'
 export { default as TemplateManagerUI } from './components/TemplateManager.vue'
 export { default as TemplateSelectUI } from './components/TemplateSelect.vue'
 export { default as DataManagerUI } from './components/DataManager.vue'
 export { default as VariableManager } from './components/VariableManager.vue'
+export { default as FunctionModelManagerUI } from './components/FunctionModelManager.vue'
 
 // 功能组件
 export { default as ActionButtonUI } from './components/ActionButton.vue'
@@ -422,7 +432,7 @@ pnpm -F @prompt-optimizer/ui test -- test-area-e2e
 
 ## 许可证
 
-ISC License
+GNU Affero General Public License v3.0 (AGPL-3.0-only)
 
 ## 文档
 

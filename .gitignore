@@ -1,3 +1,4 @@
+.*-session
 # ==========================================
 # 构建输出和分发文件
 # ==========================================
@@ -185,8 +186,13 @@ prompt-optimizer-data
 .playwright-mcp
 nul
 .spec-workflow
-.bmad-core
 .trae
 .cursor/rules/bmad
 CLAUDE.md
 .vscode
+.mcp.json
+.kilocode
+.serena
+.kiro
+# BMAD (local only)
+.ace-tool/

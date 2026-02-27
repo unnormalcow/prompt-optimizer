@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { mount, VueWrapper } from '@vue/test-utils'
 import { ref, nextTick } from 'vue'
-import ContextEditor from '../../src/components/ContextEditor.vue'
+import ContextEditor from '../../src/components/context-mode/ContextEditor.vue'
 import { createContextRepo, MemoryStorageProvider } from '@prompt-optimizer/core'
 import type { ContextRepo } from '@prompt-optimizer/core'
 
@@ -126,7 +126,7 @@ vi.mock('vue-i18n', () => ({
       }
       return translations[key] || key
     },
-    locale: { value: 'zh-CN' }
+    locale: ref('zh-CN')
   })
 }))
 
@@ -159,6 +159,21 @@ vi.mock('../../src/composables/useAccessibility', () => ({
   })
 }))
 
+// Mock useTemporaryVariables (临时变量管理器)
+vi.mock('../../src/composables/variable/useTemporaryVariables', () => ({
+  useTemporaryVariables: () => ({
+    temporaryVariables: { value: {} },
+    setVariable: vi.fn(),
+    getVariable: vi.fn(() => undefined),
+    deleteVariable: vi.fn(),
+    clearAll: vi.fn(),
+    hasVariable: vi.fn(() => false),
+    listVariables: vi.fn(() => ({})),
+    batchSet: vi.fn(),
+    batchDelete: vi.fn()
+  })
+}))
+
 // Mock useContextEditor
 const mockContextEditor = {
   currentData: { value: null },
@@ -174,22 +189,6 @@ const mockContextEditor = {
 
 vi.mock('../../src/composables/useContextEditor', () => ({
   useContextEditor: () => mockContextEditor
-}))
-
-// Mock quickTemplateManager
-vi.mock('../../src/data/quickTemplates', () => ({
-  quickTemplateManager: {
-    getTemplates: vi.fn(() => [
-      {
-        id: 'template1',
-        name: 'Test Template',
-        description: 'Test template for integration testing',
-        messages: [
-          { role: 'system', content: 'You are a helpful assistant working on {{taskType}}.' }
-        ]
-      }
-    ])
-  }
 }))
 
 /**
@@ -215,14 +214,14 @@ const TestContextEditorWithPersistence = {
     const storage = new MemoryStorageProvider()
     const contextRepo = createContextRepo(storage)
     const currentContextId = ref<string | null>(null)
-    
+
     // 模拟变量扫描函数
     const scanVariables = (content: string): string[] => {
       if (!content) return []
       const matches = content.match(/\{\{([^}]+)\}\}/g) || []
       return matches.map(match => match.slice(2, -2))
     }
-    
+
     // 模拟变量替换函数
     const replaceVariables = (content: string, vars?: Record<string, string>): string => {
       if (!content) return content
@@ -233,11 +232,40 @@ const TestContextEditorWithPersistence = {
       })
       return result
     }
-    
+
     // 检查是否为预定义变量
     const isPredefinedVariable = (name: string): boolean => {
       const predefined = ['originalPrompt', 'currentPrompt', 'userQuestion', 'conversationContext', 'iterateInput', 'lastOptimizedPrompt', 'toolsContext']
       return predefined.includes(name)
+    }
+
+    // Mock variableManager
+    const mockVariableManager = {
+      variableManager: ref(null),
+      isReady: ref(true),
+      isAdvancedMode: ref(false),
+      customVariables: ref<Record<string, string>>({}),
+      allVariables: ref<Record<string, string>>({}),
+      statistics: ref({
+        customVariableCount: 0,
+        predefinedVariableCount: 7,
+        totalVariableCount: 7,
+        advancedModeEnabled: false
+      }),
+      setAdvancedMode: vi.fn(),
+      addVariable: vi.fn(),
+      updateVariable: vi.fn(),
+      deleteVariable: vi.fn(),
+      getVariable: vi.fn((name: string) => undefined),
+      validateVariableName: vi.fn(() => true),
+      scanVariablesInContent: vi.fn(scanVariables),
+      replaceVariables: vi.fn(replaceVariables),
+      detectMissingVariables: vi.fn(() => []),
+      getConversationMessages: vi.fn(() => []),
+      setConversationMessages: vi.fn(),
+      exportVariables: vi.fn(() => '{}'),
+      importVariables: vi.fn(),
+      refresh: vi.fn()
     }
     
     // 处理状态更新并持久化
@@ -295,20 +323,23 @@ const TestContextEditorWithPersistence = {
       isPredefinedVariable,
       handleStateUpdate,
       handleContextChange,
-      simulateRefresh
+      simulateRefresh,
+      mockVariableManager
     }
   },
   template: `
-    <ContextEditor
-      v-model:visible="visible"
-      :state="initialState"
-      :scan-variables="scanVariables"
-      :replace-variables="replaceVariables" 
-      :is-predefined-variable="isPredefinedVariable"
-      @update:state="handleStateUpdate"
-      @contextChange="handleContextChange"
-      data-testid="context-editor-with-persistence"
-    />
+    <div data-testid="context-editor-with-persistence">
+      <ContextEditor
+        v-model:visible="visible"
+        :state="initialState"
+        :scan-variables="scanVariables"
+        :replace-variables="replaceVariables"
+        :is-predefined-variable="isPredefinedVariable"
+        :variable-manager="mockVariableManager"
+        @update:state="handleStateUpdate"
+        @contextChange="handleContextChange"
+      />
+    </div>
   `,
   components: {
     ContextEditor

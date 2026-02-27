@@ -21,6 +21,7 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+
 import { useI18n } from 'vue-i18n'
 import { NButton } from 'naive-ui'
 
@@ -31,7 +32,7 @@ interface Props {
   text: string
   loading?: boolean
   loadingText?: string
-  type?: 'default' | 'tertiary' | 'primary' | 'success' | 'info' | 'warning' | 'error' | 'quaternary'
+  type?: 'default' | 'tertiary' | 'primary' | 'success' | 'info' | 'warning' | 'error'
   size?: 'tiny' | 'small' | 'medium' | 'large'
   ghost?: boolean
   round?: boolean

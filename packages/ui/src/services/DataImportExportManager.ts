@@ -2,11 +2,20 @@
  * 数据导入导出管理器实现
  */
 
-import type { DataImportExport, StandardPromptData, ConversionResult } from '../types'
+import type { DataImportExport, StandardPromptData, ConversionResult, ConversationMessage, OpenAIRequest } from '../types'
 import { PromptDataConverter } from './PromptDataConverter'
+import { scanVariableNames } from '../utils/prompt-variables'
 
 export class DataImportExportManager implements DataImportExport {
   private converter = new PromptDataConverter()
+
+  private isOpenAIRequest(value: unknown): value is OpenAIRequest {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+    const record = value as Record<string, unknown>
+    if (typeof record.model !== 'string') return false
+    if (!Array.isArray(record.messages)) return false
+    return true
+  }
 
   /**
    * 从文件导入数据
@@ -32,7 +41,7 @@ export class DataImportExportManager implements DataImportExport {
       const text = await this.readFileAsText(file)
       
       // 解析JSON
-      let jsonData: any
+      let jsonData: unknown
       try {
         jsonData = JSON.parse(text)
       } catch (parseError) {
@@ -65,7 +74,7 @@ export class DataImportExportManager implements DataImportExport {
       }
 
       // 解析JSON
-      let jsonData: any
+      let jsonData: unknown
       try {
         jsonData = JSON.parse(jsonText.trim())
       } catch (parseError) {
@@ -147,30 +156,35 @@ export class DataImportExportManager implements DataImportExport {
   /**
    * 自动检测数据格式
    */
-  detectFormat(data: any): 'langfuse' | 'openai' | 'conversation' | 'unknown' {
+  detectFormat(data: unknown): 'langfuse' | 'openai' | 'conversation' | 'unknown' {
     if (!data || typeof data !== 'object') {
       return 'unknown'
     }
 
+    const dataObj = data as Record<string, unknown>
+
     // 检测LangFuse格式
-    if (data.id && data.input && data.input.messages) {
+    if (dataObj.id && dataObj.input && typeof dataObj.input === 'object' &&
+        (dataObj.input as Record<string, unknown>).messages) {
       return 'langfuse'
     }
 
     // 检测OpenAI格式
-    if (data.messages && Array.isArray(data.messages) && data.model) {
+    if (dataObj.messages && Array.isArray(dataObj.messages) && dataObj.model) {
       return 'openai'
     }
 
     // 检测会话消息格式
-    if (Array.isArray(data) && data.length > 0 && 
-        data[0].role && data[0].content) {
+    if (Array.isArray(data) && data.length > 0 &&
+        data[0] && typeof data[0] === 'object' &&
+        (data[0] as Record<string, unknown>).role &&
+        (data[0] as Record<string, unknown>).content) {
       return 'conversation'
     }
 
     // 检测标准格式
-    if (data.messages && Array.isArray(data.messages) && 
-        (!data.model || typeof data.model === 'string')) {
+    if (dataObj.messages && Array.isArray(dataObj.messages) &&
+        (!dataObj.model || typeof dataObj.model === 'string')) {
       return 'openai' // 当作OpenAI格式处理
     }
 
@@ -178,22 +192,25 @@ export class DataImportExportManager implements DataImportExport {
   }
 
   // 私有方法：从解析后的数据导入
-  private importFromParsedData(jsonData: any): ConversionResult<StandardPromptData> {
+  private importFromParsedData(jsonData: unknown): ConversionResult<StandardPromptData> {
     const format = this.detectFormat(jsonData)
     
     switch (format) {
       case 'langfuse':
-        return this.converter.fromLangFuse(jsonData)
-      
+        return this.converter.fromLangFuse(jsonData as Record<string, unknown>)
+
       case 'openai':
+        if (!this.isOpenAIRequest(jsonData)) {
+          return { success: false, error: 'Invalid OpenAI request: missing model/messages' }
+        }
         return this.converter.fromOpenAI(jsonData)
-      
+
       case 'conversation':
-        return this.converter.fromConversationMessages(jsonData, {
+        return this.converter.fromConversationMessages(jsonData as Array<Partial<ConversationMessage>>, {
           imported_from: 'file',
           detected_format: 'conversation'
         })
-      
+
       default:
         return {
           success: false,
@@ -203,17 +220,21 @@ export class DataImportExportManager implements DataImportExport {
   }
 
   // 私有方法：准备导出数据
-  private prepareExportData(data: StandardPromptData, format: 'standard' | 'openai' | 'template'): any {
+  private prepareExportData(data: StandardPromptData, format: 'standard' | 'openai' | 'template'): StandardPromptData | Record<string, unknown> {
     switch (format) {
       case 'standard':
         return data
 
-      case 'openai':
+      case 'openai': {
         const openaiResult = this.converter.toOpenAI(data)
         if (!openaiResult.success) {
           throw new Error(openaiResult.error)
         }
-        return openaiResult.data
+        if (!openaiResult.data) {
+          throw new Error('Failed to convert to OpenAI format: missing result data')
+        }
+        return openaiResult.data as unknown as Record<string, unknown>
+      }
 
       case 'template':
         return this.prepareTemplateExport(data)
@@ -224,17 +245,23 @@ export class DataImportExportManager implements DataImportExport {
   }
 
   // 私有方法：准备模板导出
-  private prepareTemplateExport(data: StandardPromptData): any {
+  private prepareTemplateExport(data: StandardPromptData): {
+    template: StandardPromptData
+    variables: Record<string, string>
+    export_info: {
+      format: 'template'
+      exported_at: string
+      variable_count: number
+    }
+  } {
     // 提取变量
     const variables: Record<string, string> = {}
-    const variablePattern = /\{\{\s*([^}]+)\s*\}\}/g
     
     // 扫描所有消息中的变量
     data.messages.forEach(message => {
-      let match: RegExpExecArray | null
-      while ((match = variablePattern.exec(message.content)) !== null) {
-        const variableName = match[1].trim()
-        if (!variables[variableName]) {
+      const found = scanVariableNames(message.content)
+      for (const variableName of found) {
+        if (!Object.prototype.hasOwnProperty.call(variables, variableName)) {
           variables[variableName] = `[${variableName}_placeholder]`
         }
       }

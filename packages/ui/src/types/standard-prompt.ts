@@ -52,9 +52,10 @@ export interface StandardPromptData {
       name?: string
       version?: string
       variables?: string[]
+      [key: string]: unknown
     }
     timestamp?: string
-    [key: string]: any
+    [key: string]: unknown
   }
 }
 
@@ -65,7 +66,7 @@ export interface LangFuseTrace {
   name?: string
   input: {
     messages?: StandardMessage[]
-    [key: string]: any
+    [key: string]: unknown
   }
   output?: {
     content?: string
@@ -78,7 +79,7 @@ export interface LangFuseTrace {
   metadata?: {
     model?: string
     temperature?: number
-    [key: string]: any
+    [key: string]: unknown
   }
 }
 

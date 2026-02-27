@@ -40,6 +40,51 @@ function generateStreamId() {
   return `stream_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
 }
 
+function createIpcError(payload) {
+  if (!payload) {
+    // Throw a plain object so renderer can still read properties across contextBridge.
+    return { message: 'Unknown IPC error' };
+  }
+
+  if (typeof payload === 'string') {
+    return new Error(payload);
+  }
+
+  // IMPORTANT:
+  // Errors do NOT reliably preserve custom fields (e.g. `code`, `params`) across
+  // Electron contextBridge/isolated worlds. If we wrap a structured payload
+  // into an Error and throw it, the renderer may only receive `message`.
+  //
+  // So for structured IPC errors, throw a plain object. UI will translate via
+  // `code + params` (see getI18nErrorMessage).
+  if (payload && typeof payload === 'object') {
+    const hasCode = typeof payload.code === 'string' && payload.code.length > 0
+    const hasParams = payload.params && typeof payload.params === 'object'
+
+    const message = typeof payload.message === 'string' && payload.message
+      ? payload.message
+      : (typeof payload.code === 'string' ? `[${payload.code}]` : 'Unknown IPC error');
+
+    // For plain message-only errors, throw an Error so callers relying on
+    // `instanceof Error` (and `.message`) keep working.
+    if (!hasCode && !hasParams) {
+      return new Error(message)
+    }
+
+    return { ...payload, message };
+  }
+
+  return new Error(String(payload));
+}
+
+async function invokeFavorite(channel, ...args) {
+  const result = await ipcRenderer.invoke(channel, ...args);
+  if (!result.success) {
+    throw createIpcError(result.error);
+  }
+  return result.data;
+}
+
 contextBridge.exposeInMainWorld('electronAPI', {
   // IPC event listeners
   on: (channel, callback) => {
@@ -55,7 +100,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     testConnection: async (provider) => {
       const result = await ipcRenderer.invoke('llm-testConnection', provider);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -64,7 +109,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     sendMessage: async (messages, provider) => {
       const result = await ipcRenderer.invoke('llm-sendMessage', messages, provider);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -73,7 +118,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     sendMessageStructured: async (messages, provider) => {
       const result = await ipcRenderer.invoke('llm-sendMessageStructured', messages, provider);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -82,7 +127,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     fetchModelList: async (provider, customConfig) => {
       const result = await ipcRenderer.invoke('llm-fetchModelList', provider, customConfig);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -126,7 +171,65 @@ contextBridge.exposeInMainWorld('electronAPI', {
         const result = await ipcRenderer.invoke('llm-sendMessageStream', messages, provider, streamId);
         if (!result.success) {
           cleanup();
-          throw new Error(result.error);
+          throw createIpcError(result.error);
+        }
+      } catch (error) {
+        cleanup();
+        throw error;
+      }
+    },
+
+    // Send streaming message with tools (supports tool-call events)
+    sendMessageStreamWithTools: async (messages, provider, tools, callbacks) => {
+      const streamId = generateStreamId();
+
+      // Set up event listeners for streaming responses
+      const contentListener = (event, content) => {
+        if (callbacks.onContent) callbacks.onContent(content);
+      };
+      const thinkingListener = (event, thinking) => {
+        if (callbacks.onThinking) callbacks.onThinking(thinking);
+      };
+      const toolCallListener = (event, toolCall) => {
+        if (callbacks.onToolCall) callbacks.onToolCall(toolCall);
+      };
+      const finishListener = (event) => {
+        cleanup();
+        if (callbacks.onFinish) callbacks.onFinish();
+      };
+      const errorListener = (event, error) => {
+        cleanup();
+        if (callbacks.onError) callbacks.onError(new Error(error));
+      };
+
+      // Clean up listeners
+      const cleanup = () => {
+        ipcRenderer.removeListener(`stream-content-${streamId}`, contentListener);
+        ipcRenderer.removeListener(`stream-thinking-${streamId}`, thinkingListener);
+        ipcRenderer.removeListener(`stream-tool-call-${streamId}`, toolCallListener);
+        ipcRenderer.removeListener(`stream-finish-${streamId}`, finishListener);
+        ipcRenderer.removeListener(`stream-error-${streamId}`, errorListener);
+      };
+
+      // Register listeners
+      ipcRenderer.on(`stream-content-${streamId}`, contentListener);
+      ipcRenderer.on(`stream-thinking-${streamId}`, thinkingListener);
+      ipcRenderer.on(`stream-tool-call-${streamId}`, toolCallListener);
+      ipcRenderer.on(`stream-finish-${streamId}`, finishListener);
+      ipcRenderer.on(`stream-error-${streamId}`, errorListener);
+
+      // Send the streaming request
+      try {
+        const result = await ipcRenderer.invoke(
+          'llm-sendMessageStreamWithTools',
+          messages,
+          provider,
+          tools,
+          streamId
+        );
+        if (!result.success) {
+          cleanup();
+          throw createIpcError(result.error);
         }
       } catch (error) {
         cleanup();
@@ -139,12 +242,12 @@ contextBridge.exposeInMainWorld('electronAPI', {
   model: {
     ensureInitialized: async () => {
       const result = await ipcRenderer.invoke('model-ensureInitialized');
-      if (!result.success) throw new Error(result.error);
+      if (!result.success) throw createIpcError(result.error);
     },
 
     isInitialized: async () => {
       const result = await ipcRenderer.invoke('model-isInitialized');
-      if (!result.success) throw new Error(result.error);
+      if (!result.success) throw createIpcError(result.error);
       return result.data;
     },
 
@@ -152,7 +255,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAllModels: async () => {
       const result = await ipcRenderer.invoke('model-getAllModels');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -162,7 +265,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       console.warn('`getModels` is deprecated, please use `getAllModels`');
       const result = await ipcRenderer.invoke('model-getAllModels');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -171,7 +274,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     addModel: async (model) => {
       const result = await ipcRenderer.invoke('model-addModel', model);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -180,7 +283,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     updateModel: async (id, updates) => {
       const result = await ipcRenderer.invoke('model-updateModel', id, updates);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
@@ -188,14 +291,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteModel: async (id) => {
       const result = await ipcRenderer.invoke('model-deleteModel', id);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
     getEnabledModels: async () => {
       const result = await ipcRenderer.invoke('model-getEnabledModels');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -204,7 +307,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     exportData: async () => {
       const result = await ipcRenderer.invoke('model-exportData');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -213,7 +316,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     importData: async (data) => {
       const result = await ipcRenderer.invoke('model-importData', data);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
@@ -221,7 +324,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getDataType: async () => {
       const result = await ipcRenderer.invoke('model-getDataType');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -230,11 +333,136 @@ contextBridge.exposeInMainWorld('electronAPI', {
     validateData: async (data) => {
       const result = await ipcRenderer.invoke('model-validateData', data);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
   },
+
+  // Image Model Manager interface (Config-centric)
+  imageModel: {
+    ensureInitialized: async () => {
+      const result = await ipcRenderer.invoke('image-model-ensureInitialized');
+      if (!result.success) throw createIpcError(result.error);
+    },
+    isInitialized: async () => {
+      const result = await ipcRenderer.invoke('image-model-isInitialized');
+      if (!result.success) throw createIpcError(result.error);
+      return result.data;
+    },
+    getAllConfigs: async () => {
+      const result = await ipcRenderer.invoke('image-model-getAllConfigs');
+      if (!result.success) throw createIpcError(result.error);
+      return result.data;
+    },
+    getConfig: async (id) => {
+      const result = await ipcRenderer.invoke('image-model-getConfig', id);
+      if (!result.success) throw createIpcError(result.error);
+      return result.data;
+    },
+    addConfig: async (config) => {
+      const result = await ipcRenderer.invoke('image-model-addConfig', config);
+      if (!result.success) throw createIpcError(result.error);
+    },
+    updateConfig: async (id, updates) => {
+      const result = await ipcRenderer.invoke('image-model-updateConfig', id, updates);
+      if (!result.success) throw createIpcError(result.error);
+    },
+    deleteConfig: async (id) => {
+      const result = await ipcRenderer.invoke('image-model-deleteConfig', id);
+      if (!result.success) throw createIpcError(result.error);
+    },
+    getEnabledConfigs: async () => {
+      const result = await ipcRenderer.invoke('image-model-getEnabledConfigs');
+      if (!result.success) throw createIpcError(result.error);
+      return result.data;
+    },
+    exportData: async () => {
+      const result = await ipcRenderer.invoke('image-model-exportData');
+      if (!result.success) throw createIpcError(result.error);
+      return result.data;
+    },
+    importData: async (data) => {
+      const result = await ipcRenderer.invoke('image-model-importData', data);
+      if (!result.success) throw createIpcError(result.error);
+    },
+    getDataType: async () => {
+      const result = await ipcRenderer.invoke('image-model-getDataType');
+      if (!result.success) throw createIpcError(result.error);
+      return result.data;
+    },
+    validateData: async (data) => {
+      const result = await ipcRenderer.invoke('image-model-validateData', data);
+      if (!result.success) throw createIpcError(result.error);
+      return result.data;
+    },
+  },
+
+  // Image Service interface
+  image: {
+     generate: async (request) => {
+       const result = await ipcRenderer.invoke('image-generate', request);
+       if (!result.success) {
+         throw createIpcError(result.error);
+       }
+       return result.data;
+     },
+ 
+     // 显式模式：避免根据 inputImage 是否存在隐式推断
+     generateText2Image: async (request) => {
+       const result = await ipcRenderer.invoke('image-generateText2Image', request);
+       if (!result.success) {
+         throw createIpcError(result.error);
+       }
+       return result.data;
+     },
+     generateImage2Image: async (request) => {
+       const result = await ipcRenderer.invoke('image-generateImage2Image', request);
+       if (!result.success) {
+         throw createIpcError(result.error);
+       }
+       return result.data;
+     },
+ 
+     validateRequest: async (request) => {
+       const result = await ipcRenderer.invoke('image-validateRequest', request);
+       if (!result.success) {
+         throw createIpcError(result.error);
+       }
+       return result.data;
+     },
+     validateText2ImageRequest: async (request) => {
+       const result = await ipcRenderer.invoke('image-validateText2ImageRequest', request);
+       if (!result.success) {
+         throw createIpcError(result.error);
+       }
+       return result.data;
+     },
+     validateImage2ImageRequest: async (request) => {
+       const result = await ipcRenderer.invoke('image-validateImage2ImageRequest', request);
+       if (!result.success) {
+         throw createIpcError(result.error);
+       }
+       return result.data;
+     },
+ 
+     // 新增：连接测试在主进程执行
+     testConnection: async (config) => {
+       const result = await ipcRenderer.invoke('image-testConnection', config);
+       if (!result.success) {
+         throw createIpcError(result.error);
+       }
+       return result.data;
+     },
+     // 新增：动态模型列表在主进程获取
+     getDynamicModels: async (providerId, connectionConfig) => {
+       const result = await ipcRenderer.invoke('image-getDynamicModels', providerId, connectionConfig);
+       if (!result.success) {
+         throw createIpcError(result.error);
+       }
+       return result.data;
+     }
+   },
 
   // Template Manager interface
   template: {
@@ -242,7 +470,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getTemplates: async () => {
       const result = await ipcRenderer.invoke('template-getTemplates');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -251,7 +479,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getTemplate: async (id) => {
       const result = await ipcRenderer.invoke('template-getTemplate', id);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -260,7 +488,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     createTemplate: async (template) => {
       const result = await ipcRenderer.invoke('template-createTemplate', template);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -269,7 +497,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     updateTemplate: async (id, updates) => {
       const result = await ipcRenderer.invoke('template-updateTemplate', id, updates);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
@@ -277,7 +505,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteTemplate: async (id) => {
       const result = await ipcRenderer.invoke('template-deleteTemplate', id);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
@@ -285,7 +513,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     listTemplatesByType: async (type) => {
       const result = await ipcRenderer.invoke('template-listTemplatesByType', type);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -293,19 +521,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Template Import/Export
     exportTemplate: async (id) => {
       const result = await ipcRenderer.invoke('template-exportTemplate', id);
-      if (!result.success) throw new Error(result.error);
+      if (!result.success) throw createIpcError(result.error);
       return result.data;
     },
     importTemplate: async (jsonString) => {
       const result = await ipcRenderer.invoke('template-importTemplate', jsonString);
-      if (!result.success) throw new Error(result.error);
+      if (!result.success) throw createIpcError(result.error);
     },
 
     // Export all user templates data
     exportData: async () => {
       const result = await ipcRenderer.invoke('template-exportData');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -314,7 +542,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     importData: async (data) => {
       const result = await ipcRenderer.invoke('template-importData', data);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
@@ -322,7 +550,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getDataType: async () => {
       const result = await ipcRenderer.invoke('template-getDataType');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -331,7 +559,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     validateData: async (data) => {
       const result = await ipcRenderer.invoke('template-validateData', data);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -340,19 +568,19 @@ contextBridge.exposeInMainWorld('electronAPI', {
     changeBuiltinTemplateLanguage: async (language) => {
       const result = await ipcRenderer.invoke('template-changeBuiltinTemplateLanguage', language);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
     getCurrentBuiltinTemplateLanguage: async () => {
       const result = await ipcRenderer.invoke('template-getCurrentBuiltinTemplateLanguage');
-      if (!result.success) throw new Error(result.error);
+      if (!result.success) throw createIpcError(result.error);
       return result.data;
     },
 
     getSupportedBuiltinTemplateLanguages: async () => {
       const result = await ipcRenderer.invoke('template-getSupportedBuiltinTemplateLanguages');
-      if (!result.success) throw new Error(result.error);
+      if (!result.success) throw createIpcError(result.error);
       return result.data;
     },
 
@@ -365,7 +593,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getHistory: async () => {
       const result = await ipcRenderer.invoke('history-getHistory');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -374,7 +602,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     addRecord: async (record) => {
       const result = await ipcRenderer.invoke('history-addRecord', record);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -383,7 +611,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteRecord: async (id) => {
       const result = await ipcRenderer.invoke('history-deleteRecord', id);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
@@ -391,7 +619,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     clearHistory: async () => {
       const result = await ipcRenderer.invoke('history-clearHistory');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
@@ -399,7 +627,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getIterationChain: async (recordId) => {
       const result = await ipcRenderer.invoke('history-getIterationChain', recordId);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -407,7 +635,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getAllChains: async () => {
       const result = await ipcRenderer.invoke('history-getAllChains');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -415,7 +643,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getChain: async (chainId) => {
       const result = await ipcRenderer.invoke('history-getChain', chainId);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -423,7 +651,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     createNewChain: async (record) => {
       const result = await ipcRenderer.invoke('history-createNewChain', record);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -431,7 +659,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     addIteration: async (params) => {
       const result = await ipcRenderer.invoke('history-addIteration', params);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -439,7 +667,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     deleteChain: async (chainId) => {
       const result = await ipcRenderer.invoke('history-deleteChain', chainId);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
@@ -447,7 +675,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     exportData: async () => {
       const result = await ipcRenderer.invoke('history-exportData');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -456,7 +684,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     importData: async (data) => {
       const result = await ipcRenderer.invoke('history-importData', data);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
@@ -464,7 +692,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getDataType: async () => {
       const result = await ipcRenderer.invoke('history-getDataType');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -473,9 +701,82 @@ contextBridge.exposeInMainWorld('electronAPI', {
     validateData: async (data) => {
       const result = await ipcRenderer.invoke('history-validateData', data);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
+    }
+  },
+
+  // Favorite Manager interface
+  favoriteManager: {
+    addFavorite: async (favorite) => {
+      return await invokeFavorite('favorite-addFavorite', favorite);
+    },
+    getFavorites: async (options) => {
+      return await invokeFavorite('favorite-getFavorites', options);
+    },
+    getFavorite: async (id) => {
+      return await invokeFavorite('favorite-getFavorite', id);
+    },
+    updateFavorite: async (id, updates) => {
+      await invokeFavorite('favorite-updateFavorite', id, updates);
+    },
+    deleteFavorite: async (id) => {
+      await invokeFavorite('favorite-deleteFavorite', id);
+    },
+    deleteFavorites: async (ids) => {
+      await invokeFavorite('favorite-deleteFavorites', ids);
+    },
+    incrementUseCount: async (id) => {
+      await invokeFavorite('favorite-incrementUseCount', id);
+    },
+    getCategories: async () => {
+      return await invokeFavorite('favorite-getCategories');
+    },
+    addCategory: async (category) => {
+      return await invokeFavorite('favorite-addCategory', category);
+    },
+    updateCategory: async (id, updates) => {
+      await invokeFavorite('favorite-updateCategory', id, updates);
+    },
+    deleteCategory: async (id) => {
+      return await invokeFavorite('favorite-deleteCategory', id);
+    },
+    getStats: async () => {
+      return await invokeFavorite('favorite-getStats');
+    },
+    searchFavorites: async (keyword, options) => {
+      return await invokeFavorite('favorite-searchFavorites', keyword, options);
+    },
+    exportFavorites: async (ids) => {
+      return await invokeFavorite('favorite-exportFavorites', ids);
+    },
+    importFavorites: async (data, options) => {
+      return await invokeFavorite('favorite-importFavorites', data, options);
+    },
+    getAllTags: async () => {
+      return await invokeFavorite('favorite-getAllTags');
+    },
+    addTag: async (tag) => {
+      await invokeFavorite('favorite-addTag', tag);
+    },
+    renameTag: async (oldTag, newTag) => {
+      return await invokeFavorite('favorite-renameTag', oldTag, newTag);
+    },
+    mergeTags: async (sourceTags, targetTag) => {
+      return await invokeFavorite('favorite-mergeTags', sourceTags, targetTag);
+    },
+    deleteTag: async (tag) => {
+      return await invokeFavorite('favorite-deleteTag', tag);
+    },
+    reorderCategories: async (categoryIds) => {
+      await invokeFavorite('favorite-reorderCategories', categoryIds);
+    },
+    getCategoryUsage: async (categoryId) => {
+      return await invokeFavorite('favorite-getCategoryUsage', categoryId);
+    },
+    ensureDefaultCategories: async (defaultCategories) => {
+      await invokeFavorite('favorite-ensureDefaultCategories', defaultCategories);
     }
   },
 
@@ -484,7 +785,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     optimizePrompt: async (request) => {
       const result = await ipcRenderer.invoke('prompt-optimizePrompt', request);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -522,10 +823,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
       const result = await ipcRenderer.invoke('prompt-optimizePromptStream', request, streamId);
       if (!result.success) {
         cleanup();
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
-    iteratePromptStream: async (originalPrompt, lastOptimizedPrompt, iterateInput, modelKey, templateId, callbacks) => {
+    iteratePromptStream: async (originalPrompt, lastOptimizedPrompt, iterateInput, modelKey, templateId, callbacks, contextData) => {
       const streamId = generateStreamId();
 
       const tokenListener = (event, token) => {
@@ -555,10 +856,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
       ipcRenderer.on(`stream-finish-${streamId}`, finishListener);
       ipcRenderer.on(`stream-error-${streamId}`, errorListener);
 
-      const result = await ipcRenderer.invoke('prompt-iteratePromptStream', originalPrompt, lastOptimizedPrompt, iterateInput, modelKey, templateId, streamId);
+      const result = await ipcRenderer.invoke('prompt-iteratePromptStream', originalPrompt, lastOptimizedPrompt, iterateInput, modelKey, templateId, streamId, contextData);
       if (!result.success) {
         cleanup();
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
     testPromptStream: async (systemPrompt, userPrompt, modelKey, callbacks) => {
@@ -594,7 +895,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
       const result = await ipcRenderer.invoke('prompt-testPromptStream', systemPrompt, userPrompt, modelKey, streamId);
       if (!result.success) {
         cleanup();
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
     // 自定义会话测试（支持工具调用）
@@ -636,34 +937,34 @@ contextBridge.exposeInMainWorld('electronAPI', {
       const result = await ipcRenderer.invoke('prompt-testCustomConversationStream', request, streamId);
       if (!result.success) {
         cleanup();
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
     iteratePrompt: async (originalPrompt, lastOptimizedPrompt, iterateInput, modelKey, templateId) => {
       const result = await ipcRenderer.invoke('prompt-iteratePrompt', originalPrompt, lastOptimizedPrompt, iterateInput, modelKey, templateId);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
     testPrompt: async (systemPrompt, userPrompt, modelKey) => {
       const result = await ipcRenderer.invoke('prompt-testPrompt', systemPrompt, userPrompt, modelKey);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
     getHistory: async () => {
       const result = await ipcRenderer.invoke('prompt-getHistory');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
     getIterationChain: async (recordId) => {
       const result = await ipcRenderer.invoke('prompt-getIterationChain', recordId);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -675,7 +976,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getEnvironmentVariables: async () => {
       const result = await ipcRenderer.invoke('config-getEnvironmentVariables');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     }
@@ -689,7 +990,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     exportAllData: async () => {
       const result = await ipcRenderer.invoke('data-exportAllData');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -698,8 +999,26 @@ contextBridge.exposeInMainWorld('electronAPI', {
     importAllData: async (dataString) => {
       const result = await ipcRenderer.invoke('data-importAllData', dataString);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
+    },
+
+    // Get local storage info (desktop only)
+    getStorageInfo: async () => {
+      const result = await ipcRenderer.invoke('data-getStorageInfo');
+      if (!result.success) {
+        throw createIpcError(result.error);
+      }
+      return result.data;
+    },
+
+    // Open the userData directory (desktop only)
+    openStorageDirectory: async () => {
+      const result = await ipcRenderer.invoke('data-openStorageDirectory');
+      if (!result.success) {
+        throw createIpcError(result.error);
+      }
+      return result.data;
     }
   },
 
@@ -708,7 +1027,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     list: async () => {
       const result = await ipcRenderer.invoke('context-list');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -716,7 +1035,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getCurrentId: async () => {
       const result = await ipcRenderer.invoke('context-getCurrentId');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -724,14 +1043,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     setCurrentId: async (id) => {
       const result = await ipcRenderer.invoke('context-setCurrentId', id);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
     get: async (id) => {
       const result = await ipcRenderer.invoke('context-get', id);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -739,15 +1058,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     create: async (meta) => {
       const result = await ipcRenderer.invoke('context-create', meta);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
 
-    duplicate: async (id) => {
-      const result = await ipcRenderer.invoke('context-duplicate', id);
+    duplicate: async (id, options) => {
+      const result = await ipcRenderer.invoke('context-duplicate', id, options);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -755,35 +1074,35 @@ contextBridge.exposeInMainWorld('electronAPI', {
     rename: async (id, title) => {
       const result = await ipcRenderer.invoke('context-rename', id, title);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
     save: async (ctx) => {
       const result = await ipcRenderer.invoke('context-save', ctx);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
     update: async (id, patch) => {
       const result = await ipcRenderer.invoke('context-update', id, patch);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
     remove: async (id) => {
       const result = await ipcRenderer.invoke('context-remove', id);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
     exportAll: async () => {
       const result = await ipcRenderer.invoke('context-exportAll');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -791,7 +1110,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     importAll: async (bundle, mode) => {
       const result = await ipcRenderer.invoke('context-importAll', bundle, mode);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -799,7 +1118,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     exportData: async () => {
       const result = await ipcRenderer.invoke('context-exportData');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -807,14 +1126,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     importData: async (data) => {
       const result = await ipcRenderer.invoke('context-importData', data);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
     getDataType: async () => {
       const result = await ipcRenderer.invoke('context-getDataType');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -822,7 +1141,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     validateData: async (data) => {
       const result = await ipcRenderer.invoke('context-validateData', data);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     }
@@ -836,40 +1155,40 @@ contextBridge.exposeInMainWorld('electronAPI', {
     get: async (key, defaultValue) => {
       const result = await ipcRenderer.invoke('preference-get', key, defaultValue);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
     set: async (key, value) => {
       const result = await ipcRenderer.invoke('preference-set', key, value);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
     delete: async (key) => {
       const result = await ipcRenderer.invoke('preference-delete', key);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
     keys: async () => {
       const result = await ipcRenderer.invoke('preference-keys');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
     clear: async () => {
       const result = await ipcRenderer.invoke('preference-clear');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
     getAll: async () => {
       const result = await ipcRenderer.invoke('preference-getAll');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -878,7 +1197,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     exportData: async () => {
       const result = await ipcRenderer.invoke('preference-exportData');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -887,7 +1206,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     importData: async (data) => {
       const result = await ipcRenderer.invoke('preference-importData', data);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
     },
 
@@ -895,7 +1214,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getDataType: async () => {
       const result = await ipcRenderer.invoke('preference-getDataType');
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -904,7 +1223,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     validateData: async (data) => {
       const result = await ipcRenderer.invoke('preference-validateData', data);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -915,7 +1234,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     openExternal: async (url) => {
       const result = await ipcRenderer.invoke('shell-openExternal', url);
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },
@@ -929,9 +1248,21 @@ contextBridge.exposeInMainWorld('electronAPI', {
         5000 // 5秒超时，获取版本应该很快
       );
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
+    },
+
+    // Sync UI locale (renderer -> main) so main-process UI (e.g. context menus)
+    // can follow the app's selected language.
+    setLocale: async (locale) => {
+      const result = await withTimeout(
+        ipcRenderer.invoke('app-set-locale', locale),
+        5000
+      );
+      if (!result.success) {
+        throw createIpcError(result.error);
+      }
     },
   },
 
@@ -960,7 +1291,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
         60000 // 60秒超时，需要检查两个版本
       );
       if (!result.success) {
-        throw new Error(result.error);
+        throw createIpcError(result.error);
       }
       return result.data;
     },

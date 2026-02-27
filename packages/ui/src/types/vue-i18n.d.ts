@@ -72,8 +72,6 @@ declare module 'vue-i18n' {
       apiUrl: string;
       defaultModel: string;
       apiKey: string;
-      useVercelProxy: string;
-      useVercelProxyHint: string;
       addModel: string;
 
       // Placeholders
@@ -87,6 +85,7 @@ declare module 'vue-i18n' {
       deleteConfirm: string;
 
       // Operation Results
+      testing: string;
       testSuccess: string;
       testFailed: string;
       updateSuccess: string;
@@ -110,7 +109,6 @@ declare module 'vue-i18n' {
       apiUrlAriaLabel: string;
       defaultModelAriaLabel: string;
       apiKeyAriaLabel: string;
-      useVercelProxyAriaLabel: string;
       cancelEditAriaLabel: string;
       saveEditAriaLabel: string;
       cancelAddAriaLabel: string;
@@ -119,9 +117,18 @@ declare module 'vue-i18n' {
     templateManager: {
       title: string;
       optimizeTemplates: string;
+      userOptimizeTemplates: string;
       iterateTemplates: string;
+      optimizeTemplatesContext: string;
+      userOptimizeTemplatesContext: string;
+      iterateTemplatesContext: string;
       optimizeTemplateList: string;
+      userOptimizeTemplateList: string;
       iterateTemplateList: string;
+      // Image template categories
+      imageText2ImageTemplates: string;
+      imageImage2ImageTemplates: string;
+      imageIterateTemplates: string;
       addTemplate: string;
       editTemplate: string;
       deleteTemplate: string;
@@ -188,6 +195,6 @@ declare module 'vue-i18n' {
     };
   }
   export function useI18n(): {
-    t: (key: string, ...args: any[]) => string;
+    t: (key: string, ...args: unknown[]) => string;
   }
 } 

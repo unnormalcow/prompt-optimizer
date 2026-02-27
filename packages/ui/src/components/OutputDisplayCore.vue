@@ -1,12 +1,13 @@
 <template>
-  <NCard 
+  <NCard
     :bordered="false"
     class="output-display-core h-full  max-height: 100% "
-    content-style="padding: 0; height: 100%; max-height: 100%;"
+    content-style="padding: 0; height: 100%; max-height: 100%; display: flex; flex-direction: column; overflow: hidden;"
+    :data-testid="testId"
   >
-    <NFlex vertical style="height: 100%;">
+    <NFlex vertical style="height: 100%; min-height: 0; overflow: hidden;">
       <!-- 统一顶层工具栏 -->
-      <NFlex v-if="hasToolbar" justify="space-between" align="center">
+      <NFlex v-if="hasToolbar" justify="space-between" align="center" style="flex: 0 0 auto;">
         <!-- 左侧：视图控制按钮组 -->
         <NButtonGroup>
           <NButton 
@@ -37,7 +38,22 @@
         </NButtonGroup>
         
         <!-- 右侧：操作按钮 -->
-        <NButtonGroup>
+        <NFlex align="center" :size="8" :wrap="false">
+          <slot name="toolbar-right-extra"></slot>
+          <NButtonGroup>
+          <NButton
+            v-if="isActionEnabled('favorite')"
+            @click="handleFavorite"
+            size="small"
+            quaternary
+            circle
+          >
+            <template #icon>
+              <NIcon>
+                <Star />
+              </NIcon>
+            </template>
+          </NButton>
           <NButton
             v-if="isActionEnabled('copy')"
             @click="handleCopy('content')"
@@ -68,7 +84,8 @@
               </NIcon>
             </template>
           </NButton>
-        </NButtonGroup>
+          </NButtonGroup>
+        </NFlex>
       </NFlex>
 
       <!-- 推理内容区域 -->
@@ -103,39 +120,57 @@
         </NCollapse>
       </NFlex>
       <!-- 主要内容区域 -->
-      <NFlex vertical style="flex: 1; min-height: 0; max-height: 100%;">
+      <NFlex vertical style="flex: 1; min-height: 0; max-height: 100%; overflow: hidden;">
         <!-- 对比模式 -->
-        <TextDiffUI v-if="internalViewMode === 'diff' && content && originalContent" 
+        <TextDiffUI v-if="internalViewMode === 'diff' && content && originalContent"
           :originalText="originalContent"
           :optimizedText="content"
           :compareResult="compareResult"
           class="w-full"
-          style="height: 100%;"
+          style="height: 100%; min-height: 0; overflow: auto;"
         />
 
         <!-- 原文模式 -->
-        <NInput v-else-if="internalViewMode === 'source'"
-          :value="content"
-          @input="handleSourceInput"
-          :readonly="mode !== 'editable' || streaming"
-          type="textarea"
-          :placeholder="placeholder"
-          :autosize="{ minRows: 10 }"
-          style="height: 100%;"
-        />
+        <template v-if="internalViewMode === 'source'">
+          <!-- 🆕 Pro 模式：使用变量感知输入框 -->
+          <VariableAwareInput
+            v-if="shouldEnableVariables && variableData"
+            :model-value="content"
+            @update:model-value="handleSourceInput"
+            :readonly="mode !== 'editable' || streaming"
+            :placeholder="placeholder"
+            :autosize="true"
+            v-bind="variableData"
+            @variable-extracted="handleVariableExtracted"
+            @add-missing-variable="handleAddMissingVariable"
+            style="height: 100%; min-height: 0;"
+          />
+
+          <!-- Basic/Image 模式：使用普通输入框 -->
+          <NInput
+            v-else
+            :value="content"
+            @input="handleSourceInput"
+            :readonly="mode !== 'editable' || streaming"
+            type="textarea"
+            :placeholder="placeholder"
+            :autosize="{ minRows: 10 }"
+            style="height: 100%; min-height: 0;"
+          />
+        </template>
 
         <!-- 渲染模式（默认） -->
-        <NSpace v-else
-         style="height: 100%;max-height: 100%;"
-         item-style="height: 100%;max-height: 100%;"
-         :align="displayContent ? 'start' : 'center'"
-         :justify="displayContent ? 'start' : 'center'"
+        <NFlex v-else
+          vertical
+          :align="displayContent ? 'stretch' : 'center'"
+          :justify="displayContent ? 'start' : 'center'"
+          style="flex: 1; min-height: 0; overflow: hidden;"
         >
           <MarkdownRenderer
             v-if="displayContent"
             :content="displayContent"
             :streaming="streaming"
-            style="height: 100%;max-height: 100%;"
+            style="flex: 1; min-height: 0; overflow: auto;"
           />
           <NEmpty
             v-else-if="!loading && !streaming"
@@ -144,7 +179,7 @@
             style="height: 100%;"
           />
           <NText  v-else class="ml-2">{{ placeholder || t('common.loading') }}</NText>
-        </NSpace>
+        </NFlex>
       </NFlex>
   
     </NFlex>
@@ -152,21 +187,37 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, ref, watch, nextTick, onMounted, inject, type Ref } from 'vue'
+
 import { useI18n } from 'vue-i18n'
 import {
   NCard, NButton, NButtonGroup, NIcon, NCollapse, NCollapseItem,
   NInput, NEmpty, NSpin, NScrollbar, NFlex, NText, NSpace
 } from 'naive-ui'
-import { useClipboard } from '../composables/useClipboard'
+import { useToast } from '../composables/ui/useToast'
+import { Star } from '@vicons/tabler'
+import { useClipboard } from '../composables/ui/useClipboard'
 import MarkdownRenderer from './MarkdownRenderer.vue'
 import TextDiffUI from './TextDiff.vue'
 import type { CompareResult, ICompareService } from '@prompt-optimizer/core'
+import { VariableAwareInput } from './variable-extraction'
+import { useTemporaryVariables } from '../composables/variable/useTemporaryVariables'
+import { useVariableAwareInputBridge } from '../composables/variable/useVariableAwareInputBridge'
+import { useVariableManager } from '../composables/prompt/useVariableManager'
+import type { AppServices } from '../types/services'
+import { router as routerInstance } from '../router'
 
-type ActionName = 'fullscreen' | 'diff' | 'copy' | 'edit' | 'reasoning'
+type ActionName = 'fullscreen' | 'diff' | 'copy' | 'edit' | 'reasoning' | 'favorite'
 
 const { t } = useI18n()
 const { copyText } = useClipboard()
+
+const message = useToast()
+
+// 🆕 注入 services（用于变量管理）
+const services = inject<Ref<AppServices | null>>('services') ?? ref<AppServices | null>(null)
+
+// 移除收藏状态管理(改由父组件处理)
 
 // 组件 Props
 interface Props {
@@ -174,6 +225,9 @@ interface Props {
   content?: string
   originalContent?: string
   reasoning?: string
+
+  /** E2E/测试定位用的 data-testid（挂在组件根节点） */
+  testId?: string
   
   // 显示模式
   mode: 'readonly' | 'editable'
@@ -191,19 +245,22 @@ interface Props {
   streaming?: boolean
   
   // 服务
-  compareService: ICompareService
+  compareService?: ICompareService
 }
 
 const props = withDefaults(defineProps<Props>(), {
   content: '',
   originalContent: '',
   reasoning: '',
+  testId: undefined,
   mode: 'readonly',
   reasoningMode: 'auto',
-  enabledActions: () => ['fullscreen', 'diff', 'copy', 'edit', 'reasoning'],
+  enabledActions: () => ['fullscreen', 'diff', 'copy', 'edit', 'reasoning', 'favorite'],
   height: '100%',
   placeholder: ''
 })
+
+const testId = computed(() => props.testId || undefined)
 
 // 事件定义
 const emit = defineEmits<{
@@ -215,15 +272,57 @@ const emit = defineEmits<{
   'edit-end': []
   'reasoning-toggle': [expanded: boolean]
   'view-change': [mode: 'base' | 'diff']
+  'save-favorite': [data: { content: string; originalContent?: string }]
 }>()
 
+// 🆕 变量管理功能（Pro / Image 模式）
+// 当前架构以路由为单一真源；不要依赖 legacy 的 Preference-based functionMode。
+const routeFunctionMode = computed<'basic' | 'pro' | 'image'>(() => {
+  const path = routerInstance.currentRoute.value.path || ''
+  if (path.startsWith('/pro')) return 'pro'
+  if (path.startsWith('/image')) return 'image'
+  return 'basic'
+})
+
+const shouldEnableVariables = computed(() => routeFunctionMode.value === 'pro' || routeFunctionMode.value === 'image')
+
+// ==================== 变量管理 Composables ====================
+// 临时变量管理器（全局单例）
+const tempVars = useTemporaryVariables()
+
+// ✅ 无条件调用，composable 内部会等待 services.preferenceService 准备就绪
+const globalVarsManager = useVariableManager(services)
+
+const {
+  variableInputData: variableData,
+  handleVariableExtracted,
+  handleAddMissingVariable,
+} = useVariableAwareInputBridge({
+  enabled: shouldEnableVariables,
+  isReady: globalVarsManager.isReady,
+  globalVariables: globalVarsManager.customVariables,
+  temporaryVariables: tempVars.temporaryVariables,
+  allVariables: globalVarsManager.allVariables,
+  saveGlobalVariable: (name, value) => globalVarsManager.addVariable(name, value),
+  saveTemporaryVariable: (name, value) => tempVars.setVariable(name, value),
+  logPrefix: 'OutputDisplayCore',
+})
+
 // 内部状态
-const reasoningContentRef = ref<HTMLDivElement | null>(null)
+type ScrollbarLike = {
+  scrollTo: (options: { top: number; behavior?: ScrollBehavior }) => void
+}
+
+const reasoningContentRef = ref<ScrollbarLike | null>(null)
 const userHasManuallyToggledReasoning = ref(false)
 
 // 新的视图状态机
 const internalViewMode = ref<'render' | 'source' | 'diff'>('render')
-const compareResult = ref<CompareResult | undefined>()
+const EMPTY_COMPARE_RESULT: CompareResult = {
+  fragments: [],
+  summary: { additions: 0, deletions: 0, unchanged: 0 },
+}
+const compareResult = ref<CompareResult>(EMPTY_COMPARE_RESULT)
 
 // 推理折叠面板状态
 const reasoningExpandedNames = ref<string[]>([])
@@ -305,20 +404,10 @@ const scrollReasoningToBottom = () => {
   if (reasoningContentRef.value) {
     nextTick(() => {
       if (reasoningContentRef.value) {
-        // 使用 Naive UI NScrollbar 的正确 API
-        const scrollContainer = reasoningContentRef.value.$el || reasoningContentRef.value
-        if (scrollContainer && scrollContainer.scrollTo) {
-          scrollContainer.scrollTo({
-            top: scrollContainer.scrollHeight,
-            behavior: 'smooth'
-          })
-        } else if (reasoningContentRef.value.scrollTo) {
-          // 直接调用 NScrollbar 实例的 scrollTo 方法
-          reasoningContentRef.value.scrollTo({
-            top: 999999,  // 滚动到底部
-            behavior: 'smooth'
-          })
-        }
+        reasoningContentRef.value.scrollTo({
+          top: 999999, // 滚动到底部
+          behavior: 'smooth'
+        })
       }
     })
   }
@@ -328,19 +417,20 @@ const scrollReasoningToBottom = () => {
 const updateCompareResult = async () => {
   if (internalViewMode.value === 'diff' && props.originalContent && props.content) {
     try {
-      if (!props.compareService) {
-        throw new Error('CompareService is required but not provided')
-      }
-      compareResult.value = await props.compareService.compareTexts(
+      const compareService = props.compareService ?? services.value?.compareService
+      if (!compareService) throw new Error('CompareService not available')
+
+      compareResult.value = await compareService.compareTexts(
         props.originalContent,
         props.content
       )
     } catch (error) {
-      console.error('Error calculating diff:', error)
-      throw error
+      console.error('[OutputDisplayCore] Error calculating diff:', error)
+      message.warning(t('toast.warning.compareFailed'))
+      compareResult.value = EMPTY_COMPARE_RESULT
     }
   } else {
-    compareResult.value = undefined
+    compareResult.value = EMPTY_COMPARE_RESULT
   }
 }
 
@@ -415,6 +505,10 @@ const resetReasoningState = (initialState: boolean) => {
 }
 
 const forceExitEditing = () => {
+  // In Pro/Image (variable-enabled) workspaces, keep source view as the default
+  // to preserve variable highlighting instead of flipping back to Markdown.
+  if (shouldEnableVariables.value) return
+
   internalViewMode.value = 'render'
 }
 
@@ -422,6 +516,42 @@ const forceRefreshContent = () => {
   // V2版本中这个方法不再需要，但保留以确保向后兼容
 }
 
+// 收藏相关方法 - 触发保存对话框而不是直接保存
+const handleFavorite = () => {
+  if (!props.content) {
+    message.warning('没有内容可以收藏');
+    return;
+  }
+
+  // 触发保存收藏事件,由父组件打开保存对话框
+  emit('save-favorite', {
+    content: props.content,
+    originalContent: props.originalContent
+  });
+};
+
+// 组件挂载时设置初始视图模式
+onMounted(() => {
+  // ⚠️ 不在此处初始化 functionMode
+  // 原因：useFunctionMode 是全局单例，不应由单个组件控制初始化时机
+  // - 如果 services 未就绪，初始化会失败但仍标记为已完成，导致永久卡在 'basic'
+  // - 应该在应用级别统一初始化（如 App.vue）
+  // - functionMode 有默认值 'basic'，可以正常工作
+
+  // 如果是可编辑模式，默认显示原文
+  if (props.mode === 'editable') {
+    internalViewMode.value = 'source';
+  }
+});
+
+// 监听 mode 变化，自动切换视图模式
+watch(() => props.mode, (newMode) => {
+  if (newMode === 'editable' && internalViewMode.value === 'render') {
+    internalViewMode.value = 'source';
+  } else if (newMode === 'readonly' && internalViewMode.value === 'source') {
+    internalViewMode.value = 'render';
+  }
+});
+
 defineExpose({ resetReasoningState, forceRefreshContent, forceExitEditing })
 </script>
-

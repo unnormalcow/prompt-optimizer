@@ -13,6 +13,7 @@
     :loading="loading"
     :streaming="streaming"
     :compareService="compareService"
+    :test-id="testId"
     :style="{ height: '100%', maxHeight: '100%', flex: 1, minHeight: 0, overflow: 'hidden' }"
     @update:content="emit('update:content', $event)"
     @update:reasoning="emit('update:reasoning', $event)"
@@ -22,7 +23,12 @@
     @edit-end="emit('edit-end')"
     @reasoning-toggle="emit('reasoning-toggle', $event)"
     @view-change="emit('view-change', $event)"
-  />
+    @save-favorite="emit('save-favorite', $event)"
+  >
+    <template #toolbar-right-extra>
+      <slot name="toolbar-right-extra"></slot>
+    </template>
+  </OutputDisplayCore>
   <OutputDisplayFullscreen
     v-model="isShowingFullscreen"
     :content="content"
@@ -41,7 +47,8 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref, inject, type Ref } from 'vue';
+import { computed, ref, inject, type Ref } from 'vue'
+
 import OutputDisplayCore from './OutputDisplayCore.vue';
 import OutputDisplayFullscreen from './OutputDisplayFullscreen.vue';
 import type { AppServices } from '../types/services';
@@ -50,7 +57,7 @@ defineOptions({
   inheritAttrs: false,
 });
 
-type ActionName = 'fullscreen' | 'diff' | 'copy' | 'edit' | 'reasoning'
+type ActionName = 'fullscreen' | 'diff' | 'copy' | 'edit' | 'reasoning' | 'favorite'
 
 // Props
 interface Props {
@@ -64,10 +71,14 @@ interface Props {
   enableFullscreen?: boolean // Mapped to enabledActions
   enableEdit?: boolean // Mapped to enabledActions
   enableDiff?: boolean // Mapped to enabledActions
+  enableFavorite?: boolean // Mapped to enabledActions
   height?: string | number
   placeholder?: string
   loading?: boolean
   streaming?: boolean
+
+  /** 透传给 OutputDisplayCore 的 data-testid（挂在根节点） */
+  testId?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -75,6 +86,8 @@ const props = withDefaults(defineProps<Props>(), {
     enableFullscreen: true,
     enableEdit: true,
     enableDiff: true,
+    enableFavorite: true,
+    testId: undefined,
 });
 
 // Emits
@@ -88,9 +101,12 @@ const emit = defineEmits<{
   'reasoning-toggle': [expanded: boolean]
   'view-change': [mode: 'base' | 'diff']
   'reasoning-auto-hide': []
+  'save-favorite': [data: { content: string; originalContent?: string }]
 }>()
 
 const isShowingFullscreen = ref(false);
+
+const testId = computed(() => props.testId || undefined)
 
 // 注入服务并获取 CompareService
 const services = inject<Ref<AppServices | null>>('services');
@@ -118,6 +134,7 @@ const enabledActions = computed(() => {
     if (props.enableDiff) actions.push('diff');
     if (props.enableCopy) actions.push('copy');
     if (props.enableEdit) actions.push('edit');
+    if (props.enableFavorite) actions.push('favorite');
     return actions;
 })
 

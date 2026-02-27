@@ -1,4 +1,119 @@
+import type { UnifiedParameterDefinition } from '../model/parameter-schema'
 import { ModelConfig } from '../model/types';
+
+// === 核心架构类型（三层分离：Provider → Model → Configuration） ===
+
+/**
+ * 连接参数的类型安全定义
+ * 定义提供商所需的连接参数结构
+ */
+export interface ConnectionSchema {
+  /** 必需字段，如 ['apiKey'] */
+  required: string[]
+  /** 可选字段，如 ['baseURL', 'timeout', 'organization'] */
+  optional: string[]
+  /** 字段类型约束 */
+  fieldTypes: Record<string, 'string' | 'number' | 'boolean'>
+}
+
+/**
+ * 文本模型服务提供商静态定义（由适配器提供）
+ * 定义LLM服务提供商的元数据和能力
+ */
+export interface TextProvider {
+  /** provider 唯一标识，如 'openai', 'gemini', 'anthropic' */
+  readonly id: string
+  /** 显示名称，如 'OpenAI', 'Google Gemini', 'Anthropic' */
+  readonly name: string
+  /** 描述信息 */
+  readonly description?: string
+  /**
+   * 浏览器环境是否会被 CORS 限制（无法直接请求该 API）。
+   * - true: Web 端可能因 CORS 被浏览器拦截，建议使用 Desktop 或自行配置代理
+   * - false/undefined: 未标记为 CORS 限制（不代表一定可用，仍可能受网络/鉴权等影响）
+   */
+  readonly corsRestricted?: boolean
+  /** 是否必须提供 API Key */
+  readonly requiresApiKey: boolean
+  /** 默认 API 地址 */
+  readonly defaultBaseURL: string
+  /** 是否支持动态获取模型列表 */
+  readonly supportsDynamicModels: boolean
+  /** 连接参数结构定义（如果支持动态获取） */
+  readonly connectionSchema?: ConnectionSchema
+  /** API Key 获取页面 URL（可选）*/
+  readonly apiKeyUrl?: string
+}
+
+export type ParameterDefinition = UnifiedParameterDefinition;
+
+/**
+ * 文本模型静态定义（由适配器提供）
+ * 定义LLM模型的能力和参数schema
+ */
+export interface TextModel {
+  /** 模型唯一标识，如 'gpt-4', 'gemini-2.0-flash' */
+  readonly id: string
+  /** 显示名称，如 'GPT-4', 'Gemini 2.0 Flash' */
+  readonly name: string
+  /** 模型描述 */
+  readonly description?: string
+  /** 所属 provider，如 'openai', 'gemini' */
+  readonly providerId: string
+  /** 模型能力定义 */
+  readonly capabilities: {
+    /** 是否支持工具调用 */
+    supportsTools: boolean
+    /** 是否支持推理内容（如 o1 系列） */
+    supportsReasoning?: boolean
+    /** 最大上下文长度 */
+    maxContextLength?: number
+  }
+  /** 模型特定参数定义 */
+  readonly parameterDefinitions: readonly ParameterDefinition[]
+  /** 默认参数值 */
+  readonly defaultParameterValues?: Record<string, unknown>
+}
+
+/**
+ * 用户文本模型配置（Configuration层）
+ * 新架构的配置结构，完全独立于传统ModelConfig
+ *
+ * 设计原则：
+ * - 自包含：包含完整的providerMeta和modelMeta副本
+ * - 独立性：不继承ModelConfig，是全新的类型
+ * - 类型安全：通过元数据副本提供编译时类型检查
+ */
+export interface TextModelConfig {
+  // === 基础标识 ===
+  /** 配置唯一标识 */
+  id: string
+  /** 用户自定义配置名称 */
+  name: string
+  /** 是否启用 */
+  enabled: boolean
+
+  // === 自包含元数据副本 ===
+  /** 完整Provider元数据副本 */
+  providerMeta: TextProvider
+  /** 完整Model元数据副本 */
+  modelMeta: TextModel
+
+  // === 连接配置 ===
+  /** 连接参数配置 */
+  connectionConfig: {
+    /** API 密钥 */
+    apiKey?: string
+    /** 覆盖默认 API 地址 */
+    baseURL?: string
+    /** 支持其他连接参数（如 organization, timeout 等） */
+    [key: string]: any
+  }
+
+  // === 参数覆盖 ===
+  /** 覆盖modelMeta中的默认参数 */
+  paramOverrides?: Record<string, unknown>
+}
 
 /**
  * 工具调用相关类型
@@ -25,14 +140,17 @@ export interface ToolDefinition {
 /**
  * 消息角色类型
  */
-export type MessageRole = 'system' | 'user' | 'assistant';
+export type MessageRole = 'system' | 'user' | 'assistant' | 'tool';
 
 /**
  * 消息类型
  */
 export interface Message {
-  role: 'system' | 'user' | 'assistant';
+  role: MessageRole;
   content: string;
+  name?: string;
+  tool_calls?: ToolCall[];
+  tool_call_id?: string;
 }
 
 /**
@@ -143,4 +261,142 @@ export interface ILLMService {
    * @throws {APIError} 当请求失败时
    */
   fetchModelList(provider: string, customConfig?: Partial<ModelConfig>): Promise<ModelOption[]>;
+}
+
+// === Adapter层接口定义 ===
+
+/**
+ * 文本模型Provider适配器接口
+ * 每个LLM服务提供商需要实现此接口
+ *
+ * 职责：
+ * - 封装特定Provider的SDK调用逻辑
+ * - 提供Provider和Model元数据
+ * - 处理请求/响应转换
+ * - 保留原始错误堆栈信息
+ */
+export interface ITextProviderAdapter {
+  /**
+   * 获取Provider元数据
+   * @returns Provider静态信息
+   */
+  getProvider(): TextProvider
+
+  /**
+   * 获取静态模型列表
+   * @returns 该Provider支持的所有模型定义
+   */
+  getModels(): TextModel[]
+
+  /**
+   * 动态获取模型列表（如果Provider支持）
+   * @param config 连接配置
+   * @returns 动态获取的模型列表
+   * @throws {Error} 如果Provider不支持动态获取
+   */
+  getModelsAsync?(config: TextModelConfig): Promise<TextModel[]>
+
+  /**
+   * 发送消息（结构化格式）
+   * @param messages 消息数组
+   * @param config 模型配置
+   * @returns LLM响应
+   * @throws SDK原始错误（保留完整堆栈）
+   */
+  sendMessage(messages: Message[], config: TextModelConfig): Promise<LLMResponse>
+
+  /**
+   * 发送流式消息
+   * @param messages 消息数组
+   * @param config 模型配置
+   * @param callbacks 流式响应回调
+   * @throws SDK原始错误（保留完整堆栈）
+   */
+  sendMessageStream(
+    messages: Message[],
+    config: TextModelConfig,
+    callbacks: StreamHandlers
+  ): Promise<void>
+
+  /**
+   * 发送支持工具调用的流式消息
+   * @param messages 消息数组
+   * @param config 模型配置
+   * @param tools 工具定义
+   * @param callbacks 流式响应回调
+   * @throws SDK原始错误（保留完整堆栈）
+   */
+  sendMessageStreamWithTools(
+    messages: Message[],
+    config: TextModelConfig,
+    tools: ToolDefinition[],
+    callbacks: StreamHandlers
+  ): Promise<void>
+
+  /**
+   * 为未知模型ID构建默认元数据（兜底逻辑）
+   * @param modelId 模型ID
+   * @returns 包含默认capabilities的TextModel对象
+   */
+  buildDefaultModel(modelId: string): TextModel
+}
+
+/**
+ * 文本模型Adapter注册表接口
+ * 管理所有Adapter实例，提供统一查询接口
+ */
+export interface ITextAdapterRegistry {
+  /**
+   * 通过providerId获取Adapter实例
+   * @param providerId Provider唯一标识
+   * @returns Adapter实例
+   * @throws {Error} 如果providerId不存在
+   */
+  getAdapter(providerId: string): ITextProviderAdapter
+
+  /**
+   * 获取所有Provider元数据
+   * @returns 所有已注册Provider的元数据数组
+   */
+  getAllProviders(): TextProvider[]
+
+  /**
+   * 获取指定Provider的静态模型列表（带缓存）
+   * @param providerId Provider唯一标识
+   * @returns 静态模型列表
+   */
+  getStaticModels(providerId: string): TextModel[]
+
+  /**
+   * 动态获取模型列表（仅支持的Provider）
+   * @param providerId Provider唯一标识
+   * @param config 连接配置
+   * @returns 动态获取的模型列表
+   * @throws {Error} 如果Provider不支持动态获取
+   */
+  getDynamicModels(providerId: string, config: TextModelConfig): Promise<TextModel[]>
+
+  /**
+   * 获取模型列表（统一接口）
+   * 优先尝试动态获取，失败则fallback到静态列表
+   * @param providerId Provider唯一标识
+   * @param config 连接配置（可选）
+   * @returns 模型列表
+   */
+  getModels(providerId: string, config?: TextModelConfig): Promise<TextModel[]>
+
+  /**
+   * 检查Provider是否支持动态模型获取
+   * @param providerId Provider唯一标识
+   * @returns 是否支持
+   */
+  supportsDynamicModels(providerId: string): boolean
+
+  /**
+   * 验证Provider和Model是否匹配
+   * @param providerId Provider唯一标识
+   * @param modelId Model唯一标识
+   * @returns 是否有效
+   */
+  validateProviderModel(providerId: string, modelId: string): boolean
 }

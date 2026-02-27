@@ -1,27 +1,31 @@
 <template>
   <FullscreenDialog v-model="internalVisible" :title="title || t('common.content')">
-    <OutputDisplayCore
-        ref="coreDisplayRef"
-        :content="content"
-        :originalContent="originalContent"
-        :reasoning="reasoning"
-        :mode="mode"
-        :reasoningMode="reasoningMode"
-        :enabledActions="coreEnabledActions"
-        height="100%"
-        :placeholder="placeholder"
-        :loading="loading"
-        :streaming="streaming"
-        :compareService="compareService"
-        @update:content="handleContentUpdate"
-        @copy="handleCopy"
-    />
+    <NFlex vertical style="flex: 1; min-height: 0; overflow: hidden;">
+      <OutputDisplayCore
+          ref="coreDisplayRef"
+          :content="internalContent"
+          :originalContent="originalContent"
+          :reasoning="reasoning"
+          :mode="mode"
+          :reasoningMode="reasoningMode"
+          :enabledActions="coreEnabledActions"
+          height="100%"
+          :placeholder="placeholder"
+          :loading="loading"
+          :streaming="streaming"
+          :compareService="compareService"
+          @update:content="handleContentUpdate"
+          @copy="handleCopy"
+      />
+    </NFlex>
   </FullscreenDialog>
 </template>
 
 <script setup lang="ts">
 import { computed, ref, watch, inject, nextTick, type Ref } from 'vue'
+
 import { useI18n } from 'vue-i18n'
+import { NFlex } from 'naive-ui'
 import FullscreenDialog from './FullscreenDialog.vue'
 import OutputDisplayCore from './OutputDisplayCore.vue'
 import type { AppServices } from '../types/services';
@@ -37,7 +41,7 @@ interface Props {
   title?: string
   mode: 'readonly' | 'editable'
   reasoningMode?: 'show' | 'hide' | 'auto'
-  enabledActions?: ('fullscreen' | 'diff' | 'copy' | 'edit' | 'reasoning')[]
+  enabledActions?: ('fullscreen' | 'diff' | 'copy' | 'edit' | 'reasoning' | 'favorite')[]
   streaming?: boolean
   loading?: boolean
   placeholder?: string
@@ -49,7 +53,7 @@ const props = withDefaults(defineProps<Props>(), {
   title: '',
   mode: 'readonly',
   reasoningMode: 'auto',
-  enabledActions: () => ['diff', 'copy', 'edit', 'reasoning'],
+  enabledActions: () => ['diff', 'copy', 'edit', 'reasoning', 'favorite'],
   placeholder: ''
 })
 
@@ -89,11 +93,13 @@ const internalVisible = computed({
 })
 
 const coreEnabledActions = computed(() => {
+  // 全屏界面只需移除 fullscreen（避免递归全屏）
+  // diff 功能保留：当有 originalContent 时，OutputDisplayCore 会显示对比按钮
   return props.enabledActions?.filter(action => action !== 'fullscreen')
 })
 
 const internalContent = ref(props.content)
-const isFullscreenReasoningExpanded = ref(true)
+// const isFullscreenReasoningExpanded = ref(true)  // 保留用于未来扩展
 
 watch(() => props.content, (newVal) => {
   internalContent.value = newVal

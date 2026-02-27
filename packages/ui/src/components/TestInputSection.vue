@@ -36,6 +36,7 @@
         clearable
         show-count
         :size="size"
+        :data-testid="props.testId"
       />
 
       <!-- 帮助文本 -->
@@ -60,9 +61,10 @@
 
 <script setup lang="ts">
 import { computed } from 'vue'
+
 import { useI18n } from 'vue-i18n'
 import { NSpace, NFlex, NText, NButton, NIcon, NInput } from 'naive-ui'
-import { useFullscreen } from '../composables/useFullscreen'
+import { useFullscreen } from '../composables/ui/useFullscreen'
 import FullscreenDialog from './FullscreenDialog.vue'
 
 const { t } = useI18n()
@@ -78,6 +80,9 @@ interface Props {
   enableFullscreen?: boolean
   minRows?: number
   maxRows?: number
+
+  /** E2E: stable selector for the textarea input */
+  testId?: string
 }
 
 const props = withDefaults(defineProps<Props>(), {
@@ -88,7 +93,8 @@ const props = withDefaults(defineProps<Props>(), {
   mode: 'normal',
   enableFullscreen: true,
   minRows: 3,
-  maxRows: 8
+  maxRows: 8,
+  testId: undefined
 })
 
 const emit = defineEmits<{

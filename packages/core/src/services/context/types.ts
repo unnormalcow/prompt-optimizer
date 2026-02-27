@@ -10,6 +10,14 @@
 
 import type { IImportExportable } from '../../interfaces/import-export';
 import type { ConversationMessage, ToolDefinition } from '../prompt/types';
+import { CONTEXT_ERROR_CODES, type ErrorParams } from '../../constants/error-codes';
+
+/**
+ * 上下文模式
+ * - system: 系统模式，保留完整的消息编辑能力
+ * - user: 用户模式，聚焦于变量与工具管理
+ */
+export type ContextMode = 'system' | 'user';
 
 /**
  * 上下文数据包
@@ -20,6 +28,8 @@ export interface ContextPackage {
   id: string;
   /** 上下文标题 */
   title: string;
+  /** 上下文模式 */
+  mode: ContextMode;
   /** 数据版本，用于未来兼容性 */
   version?: string;
   /** 创建时间（ISO字符串） */
@@ -136,18 +146,19 @@ export interface ContextRepo extends IImportExportable {
   // === 内容管理 ===
   /**
    * 创建新的上下文
-   * @param meta 可选的元数据（标题等）
+   * @param meta 可选的元数据（标题、模式等）
    * @returns 新创建的上下文ID
    */
-  create(meta?: { title?: string }): Promise<string>;
+  create(meta?: { title?: string; mode?: ContextMode }): Promise<string>;
 
   /**
    * 复制现有上下文
    * @param id 要复制的上下文ID
+   * @param options 可选配置，包括模式
    * @returns 新创建的上下文ID
    * @throws 如果源ID不存在则抛出错误
    */
-  duplicate(id: string): Promise<string>;
+  duplicate(id: string, options?: { mode?: ContextMode }): Promise<string>;
 
   /**
    * 重命名上下文
@@ -198,28 +209,15 @@ export interface ContextRepo extends IImportExportable {
  * 上下文服务错误类
  */
 export class ContextError extends Error {
-  constructor(
-    message: string,
-    public readonly code?: string,
-    public readonly contextId?: string
-  ) {
-    super(message);
-    this.name = 'ContextError';
+  public readonly code: string
+  public readonly params?: ErrorParams
+
+  constructor(code: string, message?: string, params?: ErrorParams) {
+    super(message ? `[${code}] ${message}` : `[${code}]`)
+    this.name = 'ContextError'
+    this.code = code
+    this.params = params ?? (message ? { details: message } : undefined)
   }
 }
 
-/**
- * 预定义的错误代码
- */
-export const CONTEXT_ERROR_CODES = {
-  /** 上下文不存在 */
-  NOT_FOUND: 'CONTEXT_NOT_FOUND',
-  /** 试图删除最后一个上下文 */
-  MINIMUM_VIOLATION: 'CONTEXT_MINIMUM_VIOLATION',
-  /** 无效的上下文ID */
-  INVALID_ID: 'INVALID_CONTEXT_ID',
-  /** 导入数据格式错误 */
-  IMPORT_FORMAT_ERROR: 'IMPORT_FORMAT_ERROR',
-  /** 存储操作失败 */
-  STORAGE_ERROR: 'STORAGE_ERROR',
-} as const;
+export { CONTEXT_ERROR_CODES }

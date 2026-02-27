@@ -21,6 +21,19 @@ interface Window {
         callbacks: {
           onContent?: (content: string) => void;
           onThinking?: (thinking: string) => void;
+          onToolCall?: (toolCall: any) => void;
+          onFinish?: () => void;
+          onError?: (error: Error) => void;
+        }
+      ) => Promise<void>;
+      sendMessageStreamWithTools?: (
+        messages: any[],
+        provider: string,
+        tools: any[],
+        callbacks: {
+          onContent?: (content: string) => void;
+          onThinking?: (thinking: string) => void;
+          onToolCall?: (toolCall: any) => void;
           onFinish?: () => void;
           onError?: (error: Error) => void;
         }
@@ -82,6 +95,26 @@ interface Window {
     };
     config: {
       getEnvironmentVariables: () => Promise<Record<string, string>>;
+    };
+    image: {
+      generate: (request: any) => Promise<any>;
+      validateRequest: (request: any) => Promise<void>;
+      testConnection: (config: any) => Promise<any>;
+      getDynamicModels: (providerId: string, connectionConfig: any) => Promise<any[]>;
+    };
+    imageModel: {
+      ensureInitialized: () => Promise<void>;
+      isInitialized: () => Promise<boolean>;
+      getAllConfigs: () => Promise<any[]>;
+      getConfig: (id: string) => Promise<any>;
+      addConfig: (config: any) => Promise<void>;
+      updateConfig: (id: string, updates: any) => Promise<void>;
+      deleteConfig: (id: string) => Promise<void>;
+      getEnabledConfigs: () => Promise<any[]>;
+      exportData: () => Promise<any>;
+      importData: (data: any) => Promise<void>;
+      getDataType: () => Promise<string>;
+      validateData: (data: any) => Promise<boolean>;
     };
     storage: {
       // Define the methods for the Storage API proxy

@@ -8,7 +8,9 @@ beforeAll(() => {
   dotenv.config({ path: path.resolve(process.cwd(), '.env.local') });
 });
 
-describe('OpenAI API 真实连接测试', () => {
+const RUN_REAL_API = process.env.RUN_REAL_API === '1'
+
+describe.skipIf(!RUN_REAL_API)('OpenAI API 真实连接测试', () => {
   // 检查OpenAI兼容的环境变量（任何一个存在就可以运行测试）
   const openaiCompatibleKeys = [
     'OPENAI_API_KEY', 'VITE_OPENAI_API_KEY',
@@ -105,7 +107,7 @@ describe('OpenAI API 真实连接测试', () => {
         baseURL: modelConfig.baseURL,
         defaultModel: modelConfig.defaultModel,
         enabled: true,
-        provider: 'openai' // 所有兼容提供商都使用openai提供商类型
+        provider: modelConfig.key
       });
 
       const messages = [
@@ -139,7 +141,7 @@ describe('OpenAI API 真实连接测试', () => {
         baseURL: modelConfig.baseURL,
         defaultModel: modelConfig.defaultModel,
         enabled: true,
-        provider: 'openai'
+        provider: modelConfig.key
       });
 
       const messages = [
@@ -174,7 +176,7 @@ describe('OpenAI API 真实连接测试', () => {
         baseURL: modelConfig.baseURL,
         defaultModel: modelConfig.defaultModel,
         enabled: true,
-        provider: 'openai',
+        provider: modelConfig.key,
         llmParams: {
           temperature: 0.3,
           max_tokens: 100
@@ -213,7 +215,7 @@ describe('OpenAI API 真实连接测试', () => {
         baseURL: modelConfig.baseURL,
         defaultModel: modelConfig.defaultModel,
         enabled: true,
-        provider: 'openai',
+        provider: modelConfig.key,
         llmParams: {
           temperature: 0.1,
           max_tokens: 100
@@ -290,7 +292,7 @@ describe('OpenAI API 真实连接测试', () => {
         baseURL: modelConfig.baseURL,
         defaultModel: modelConfig.defaultModel,
         enabled: true,
-        provider: 'openai',
+        provider: modelConfig.key,
         llmParams: {
           temperature: 0.1,
           max_tokens: 2000
@@ -379,7 +381,7 @@ describe('OpenAI API 真实连接测试', () => {
         baseURL: modelConfig.baseURL,
         defaultModel: modelConfig.defaultModel,
         enabled: true,
-        provider: 'openai',
+        provider: modelConfig.key,
         llmParams: {
           temperature: 0.3,
           max_tokens: 100
@@ -432,7 +434,7 @@ describe('OpenAI API 真实连接测试', () => {
         baseURL: modelConfig.baseURL,
         defaultModel: modelConfig.defaultModel,
         enabled: true,
-        provider: 'openai',
+        provider: modelConfig.key,
         llmParams: {
           temperature: 0.1,
           max_tokens: 1500

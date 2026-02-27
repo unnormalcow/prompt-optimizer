@@ -4,18 +4,17 @@
  */
 
 import type {
-  VariableDefinition,
   ConversationMessage,
   ToolDefinition,
   ToolCallResult,
-  ApplyToTestData,
   AdvancedTestResult,
   ContextEditorState,
   ComponentVisibility,
-  AdvancedModuleState,
   VariableImportOptions,
   VariableExportData
 } from '@prompt-optimizer/core'
+import type { AppServices } from '../types/services'
+import type { VariableManagerHooks } from '../composables/prompt/useVariableManager'
 
 /**
  * 基础组件 Props 接口
@@ -84,6 +83,8 @@ export interface ConversationManagerProps extends BaseComponentProps {
   messages: ConversationMessage[]
   /** 可用变量集合（用于统计/高亮） */
   availableVariables: Record<string, string>
+  /** 🆕 临时变量值集合（用于 VariableAwareInput） */
+  temporaryVariables?: Record<string, string>
   /** 优化模式（用于模板分类） */
   optimizationMode?: 'system' | 'user'
   /** 变量扫描函数（标准化注入） */
@@ -104,6 +105,14 @@ export interface ConversationManagerProps extends BaseComponentProps {
   collapsible?: boolean
   /** 标题 */
   title?: string
+  /** 🆕 当前选中的消息 ID（用于高亮显示） */
+  selectedMessageId?: string
+  /** 🆕 是否启用消息优化功能 */
+  enableMessageOptimization?: boolean
+  /** 🆕 消息优化中状态 */
+  isMessageOptimizing?: boolean
+  /** 🆕 是否启用工具管理功能 */
+  enableToolManagement?: boolean
 }
 
 export interface ConversationManagerEvents extends BaseComponentEvents {
@@ -117,6 +126,20 @@ export interface ConversationManagerEvents extends BaseComponentEvents {
   openVariableManager: (variableName?: string) => void
   /** 消息拖拽排序 */
   messageReorder: (fromIndex: number, toIndex: number) => void
+  /** 🆕 消息被选中用于优化 */
+  messageSelect: (message: ConversationMessage) => void
+  /** 🆕 触发消息优化 */
+  optimizeMessage: () => void
+  /** 🆕 打开工具管理器 */
+  'open-tool-manager': () => void
+  /** 🆕 变量提取事件 */
+  'variable-extracted': (data: {
+    variableName: string
+    variableValue: string
+    variableType: 'global' | 'temporary'
+  }) => void
+  /** 🆕 添加缺失变量事件 */
+  'add-missing-variable': (varName: string) => void
 }
 
 /**
@@ -127,8 +150,10 @@ export interface ContextEditorProps extends BaseComponentProps {
   visible: boolean
   /** 编辑器状态 */
   state?: ContextEditorState
-  /** 可用变量集合（全局变量，用于缺失检测和预览） */
-  availableVariables?: Record<string, string>
+  /** 服务实例（用于变量管理） */
+  services?: AppServices | null
+  /** 变量管理器实例（必需，用于数据同步，与全局变量管理器共享） */
+  variableManager: VariableManagerHooks
   /** 是否显示工具管理标签页 */
   showToolManager?: boolean
   /** 工具列表 */
@@ -147,6 +172,10 @@ export interface ContextEditorProps extends BaseComponentProps {
   width?: number | string
   /** 弹窗高度 */
   height?: number | string
+  /** 默认激活的标签页 */
+  defaultTab?: 'messages' | 'variables' | 'tools'
+  /** 仅显示指定标签页（隐藏其他标签页和标签栏） */
+  onlyShowTab?: 'messages' | 'variables' | 'tools' | 'templates'
 }
 
 export interface ContextEditorEvents extends BaseComponentEvents {
@@ -190,6 +219,10 @@ export interface TestAreaPanelProps extends BaseComponentProps {
   advancedModeEnabled?: boolean
   /** 测试内容 */
   testContent?: string
+
+  /** E2E: stable selector prefix, e.g. "basic-system" */
+  testIdPrefix?: string
+
   /** 主要操作按钮文字 */
   primaryActionText?: string
   /** 主要操作是否禁用 */
@@ -293,7 +326,7 @@ export interface AdvancedModuleConfig {
 /**
  * 组件通信数据格式
  */
-export interface ComponentMessage<T = any> {
+export interface ComponentMessage<T = unknown> {
   /** 消息类型 */
   type: string
   /** 消息负载 */
@@ -315,7 +348,7 @@ export interface ComponentError {
   /** 错误消息 */
   message: string
   /** 错误详情 */
-  details?: any
+  details?: unknown
   /** 发生错误的组件 */
   component: string
   /** 错误时间 */
@@ -360,4 +393,33 @@ export interface PerformanceMetrics {
   updateCount: number
   /** 最后更新时间 */
   lastUpdate: Date
+}
+
+/**
+ * ToolManagerModal 组件类型
+ */
+export interface ToolManagerModalProps extends BaseComponentProps {
+  /** 弹窗是否可见 */
+  visible: boolean
+  /** 工具列表 */
+  tools: ToolDefinition[]
+  /** 是否只读模式 */
+  readonly?: boolean
+  /** 弹窗标题 */
+  title?: string
+  /** 弹窗宽度 */
+  width?: string
+}
+
+export interface ToolManagerModalEvents extends BaseComponentEvents {
+  /** 弹窗可见性变更 */
+  'update:visible': (visible: boolean) => void
+  /** 工具列表变更 */
+  'update:tools': (tools: ToolDefinition[]) => void
+  /** 工具变更事件 */
+  toolChange: (tools: ToolDefinition[], action: 'add' | 'update' | 'delete', index: number) => void
+  /** 确认事件 */
+  confirm: (tools: ToolDefinition[]) => void
+  /** 取消事件 */
+  cancel: () => void
 }
